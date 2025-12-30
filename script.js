@@ -295,7 +295,7 @@ function getPeriodLabel() {
         '3y': 'Siste 3 år',
         '5y': 'Siste 5 år',
         '10y': 'Siste 10 år',
-        'max': 'Maks (1995-2024)'
+        'max': 'Maks (2001-2025)'
     };
     return labels[state.selectedPeriod] || labels['max'];
 }
@@ -314,26 +314,42 @@ function calculatePortfolioValue(data, allocation, startCapital) {
     const nordicStocksAmount = (allocation.nordicStocks / 100) * startCapital;
     const emergingMarketsAmount = (allocation.emergingMarkets / 100) * startCapital;
     
+    let lastKnownValue = null; // Track last known portfolio value for rows with missing data
+    
     data.forEach(row => {
-        // Calculate relative returns from base
-        const stockReturn = row.stocks / baseValues.stocks;
-        const riskFreeReturn = row.riskFree / baseValues.riskFree;
-        const highYieldReturn = row.highYield / baseValues.highYield;
-        // Use actual nordic stocks and emerging markets data if available, otherwise use stocks as proxy
-        const nordicReturn = (row.nordicStocks && baseValues.nordicStocks) 
-            ? row.nordicStocks / baseValues.nordicStocks 
-            : row.stocks / baseValues.stocks;
-        const emergingReturn = (row.emergingMarkets && baseValues.emergingMarkets) 
-            ? row.emergingMarkets / baseValues.emergingMarkets 
-            : row.stocks / baseValues.stocks;
+        // Check if row has all necessary data for portfolio calculation
+        const hasAllData = row.stocks !== undefined && row.riskFree !== undefined && 
+                          row.highYield !== undefined && baseValues.stocks && 
+                          baseValues.riskFree && baseValues.highYield;
         
-        // Weighted portfolio value based on MNOK allocations
-        const portfolioValue = 
-            stocksAmount * stockReturn +
-            riskFreeAmount * riskFreeReturn +
-            highYieldAmount * highYieldReturn +
-            nordicStocksAmount * nordicReturn +
-            emergingMarketsAmount * emergingReturn;
+        let portfolioValue;
+        
+        if (hasAllData) {
+            // Calculate relative returns from base
+            const stockReturn = row.stocks / baseValues.stocks;
+            const riskFreeReturn = row.riskFree / baseValues.riskFree;
+            const highYieldReturn = row.highYield / baseValues.highYield;
+            // Use actual nordic stocks and emerging markets data if available, otherwise use stocks as proxy
+            const nordicReturn = (row.nordicStocks && baseValues.nordicStocks) 
+                ? row.nordicStocks / baseValues.nordicStocks 
+                : row.stocks / baseValues.stocks;
+            const emergingReturn = (row.emergingMarkets && baseValues.emergingMarkets) 
+                ? row.emergingMarkets / baseValues.emergingMarkets 
+                : row.stocks / baseValues.stocks;
+            
+            // Weighted portfolio value based on MNOK allocations
+            portfolioValue = 
+                stocksAmount * stockReturn +
+                riskFreeAmount * riskFreeReturn +
+                highYieldAmount * highYieldReturn +
+                nordicStocksAmount * nordicReturn +
+                emergingMarketsAmount * emergingReturn;
+            
+            lastKnownValue = portfolioValue; // Update last known value
+        } else {
+            // Use last known value if data is missing (e.g., for 2026 with only nurse salary)
+            portfolioValue = lastKnownValue || startCapital;
+        }
         
         values.push({
             date: row.date,
@@ -2087,6 +2103,11 @@ function createEquityChart(portfolioValues, drawdowns) {
     const chartOptions = {
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+            padding: {
+                bottom: 20
+            }
+        },
         interaction: {
             intersect: false,
             mode: 'index'
@@ -2202,6 +2223,11 @@ function createUnderwaterChart(drawdowns, viewType = 'percent') {
     const chartOptions = {
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+            padding: {
+                bottom: 20
+            }
+        },
         interaction: {
             intersect: false,
             mode: 'index'
@@ -2240,9 +2266,10 @@ function createUnderwaterChart(drawdowns, viewType = 'percent') {
                 type: 'time',
                 time: { unit: 'year', displayFormats: { year: 'yyyy' } },
                 grid: { display: false },
+                position: 'bottom',
                 ticks: { 
-                    font: { family: "'Inter', sans-serif", size: 10 },
-                    color: 'rgba(0, 0, 0, 0.7)' // Standard dark color for labels on light background
+                    font: { family: "'DM Sans', sans-serif", size: 11 },
+                    padding: 8
                 },
                 min: state.drawdownZoom.isZoomed ? state.drawdownZoom.minX : undefined,
                 max: state.drawdownZoom.isZoomed ? state.drawdownZoom.maxX : undefined
@@ -2253,12 +2280,10 @@ function createUnderwaterChart(drawdowns, viewType = 'percent') {
                 beginAtZero: false,
                 reverse: false, // 0% at top, negative values going down
                 grid: { 
-                    color: 'rgba(0, 0, 0, 0.1)', // Minimalist grid: grey with low opacity on light background
-                    lineWidth: 1,
-                    borderDash: [3, 3] // Dotted lines
+                    color: 'rgba(0, 0, 0, 0.05)' // Same as other charts
                 },
                 ticks: {
-                    font: { family: "'JetBrains Mono', monospace", size: 10 },
+                    font: { family: "'JetBrains Mono', monospace", size: 11 },
                     color: mainColor, // Red color for Y-axis labels (matching the graph)
                     callback: function(value, index, ticks) {
                         const chartViewType = this.chart.options.viewType || 'percent';
@@ -2879,10 +2904,37 @@ function createNurseChart() {
     
     // Last year: antall årslønner siste år
     if (nurseIndexYearly.length > 0) {
+        const firstYearIndex = nurseIndexYearly[0].index;
         const lastYearIndex = nurseIndexYearly[nurseIndexYearly.length - 1].index;
         const lastYearEl = document.getElementById('nurse-index-last');
         if (lastYearEl) {
             lastYearEl.textContent = lastYearIndex.toFixed(1);
+        }
+        
+        // Calculate growth percentage and annual growth (CAGR)
+        if (firstYearIndex > 0 && lastYearIndex > 0) {
+            const totalGrowth = ((lastYearIndex / firstYearIndex) - 1) * 100;
+            const numYears = nurseIndexYearly.length - 1; // Number of years between first and last
+            const annualGrowth = numYears > 0 
+                ? ((Math.pow(lastYearIndex / firstYearIndex, 1 / numYears) - 1) * 100)
+                : 0;
+            
+            // Update growth display
+            const growthContainer = document.getElementById('nurse-index-growth');
+            const growthTotalEl = document.getElementById('nurse-growth-total');
+            const growthAnnualEl = document.getElementById('nurse-growth-annual');
+            
+            if (growthContainer && growthTotalEl && growthAnnualEl) {
+                growthTotalEl.textContent = `Vekst: ${totalGrowth >= 0 ? '+' : ''}${totalGrowth.toFixed(1)}%`;
+                growthAnnualEl.textContent = `${annualGrowth >= 0 ? '+' : ''}${annualGrowth.toFixed(2)}% per år`;
+                growthContainer.style.display = 'flex';
+            }
+        } else {
+            // Hide growth if we can't calculate it
+            const growthContainer = document.getElementById('nurse-index-growth');
+            if (growthContainer) {
+                growthContainer.style.display = 'none';
+            }
         }
     }
     
@@ -3740,7 +3792,7 @@ function initializeYearByYearModal() {
     yearByYearModalInitialized = true;
 }
 
-// Calculate yearly return and volatility for a portfolio
+// Calculate yearly return and cumulative return for a portfolio
 function calculateYearlyPortfolioMetrics(year, portfolio) {
     // Get all data for the year
     const yearData = state.data.filter(row => {
@@ -3749,7 +3801,7 @@ function calculateYearlyPortfolioMetrics(year, portfolio) {
     });
     
     if (yearData.length < 2) {
-        return { return: null, volatility: null };
+        return { return: null, cumulativeReturn: null };
     }
     
     // Calculate portfolio values for each data point in the year
@@ -3760,11 +3812,22 @@ function calculateYearlyPortfolioMetrics(year, portfolio) {
     const endValue = portfolioValues[portfolioValues.length - 1].value;
     const yearlyReturn = ((endValue - startValue) / startValue) * 100;
     
-    // Calculate volatility (standard deviation of period returns, annualized)
-    const periodReturns = calculateReturns(portfolioValues);
-    const volatility = calculateVolatility(periodReturns);
+    // Calculate cumulative return from 2001 to this year
+    // Get data from 2001 to the end of this year
+    const dataFromStart = state.data.filter(row => {
+        const rowYear = row.date.getFullYear();
+        return rowYear >= 2001 && rowYear <= year;
+    });
     
-    return { return: yearlyReturn, volatility: volatility };
+    let cumulativeReturn = null;
+    if (dataFromStart.length >= 2) {
+        const allPortfolioValues = calculatePortfolioValue(dataFromStart, portfolio, state.startCapital);
+        const firstValue = allPortfolioValues[0].value;
+        const lastValue = allPortfolioValues[allPortfolioValues.length - 1].value;
+        cumulativeReturn = ((lastValue - firstValue) / firstValue) * 100;
+    }
+    
+    return { return: yearlyReturn, cumulativeReturn: cumulativeReturn };
 }
 
 // Populate year by year table
@@ -3799,9 +3862,9 @@ function populateYearByYearTable(tableBody) {
             ? formatPercent(currentMetrics.return) 
             : '-';
         
-        const currentVolCell = document.createElement('td');
-        currentVolCell.textContent = currentMetrics.volatility !== null 
-            ? currentMetrics.volatility.toFixed(2) + '%' 
+        const currentCumulativeCell = document.createElement('td');
+        currentCumulativeCell.textContent = currentMetrics.cumulativeReturn !== null 
+            ? formatPercent(currentMetrics.cumulativeReturn) 
             : '-';
         
         const newReturnCell = document.createElement('td');
@@ -3809,16 +3872,16 @@ function populateYearByYearTable(tableBody) {
             ? formatPercent(newMetrics.return) 
             : '-';
         
-        const newVolCell = document.createElement('td');
-        newVolCell.textContent = newMetrics.volatility !== null 
-            ? newMetrics.volatility.toFixed(2) + '%' 
+        const newCumulativeCell = document.createElement('td');
+        newCumulativeCell.textContent = newMetrics.cumulativeReturn !== null 
+            ? formatPercent(newMetrics.cumulativeReturn) 
             : '-';
         
         row.appendChild(yearCell);
         row.appendChild(currentReturnCell);
-        row.appendChild(currentVolCell);
+        row.appendChild(currentCumulativeCell);
         row.appendChild(newReturnCell);
-        row.appendChild(newVolCell);
+        row.appendChild(newCumulativeCell);
         
         tableBody.appendChild(row);
     });

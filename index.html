@@ -35,7 +35,7 @@
                     </div>
                     <div class="info-badge">
                         <span class="badge-label">Periode</span>
-                        <span class="badge-value" id="period-display">1995 - 2024</span>
+                        <span class="badge-value" id="period-display">2001 - 2025</span>
                     </div>
                     <button class="disclaimer-btn" id="disclaimer-btn">Disclaimer</button>
                     <button class="historical-kpi-btn" id="historical-kpi-btn">Historisk KPI</button>
@@ -193,8 +193,11 @@
                                 </div>
                                 
                                 <!-- Total Sum Display -->
-                                <div class="total-sum">
-                                    <span>Total: <strong id="current-total">100.0%</strong></span>
+                                <div class="slider-item">
+                                    <div class="slider-header">
+                                        <label>Sum eksponering</label>
+                                        <span class="slider-value" id="current-total">100.0%</span>
+                                    </div>
                                     <span class="sum-warning" id="current-warning" style="display: none;">Summen overstiger 100%!</span>
                                 </div>
                             </div>
@@ -275,8 +278,11 @@
                                 </div>
                                 
                                 <!-- Total Sum Display -->
-                                <div class="total-sum">
-                                    <span>Total: <strong id="new-total">100.0%</strong></span>
+                                <div class="slider-item">
+                                    <div class="slider-header">
+                                        <label>Sum eksponering</label>
+                                        <span class="slider-value" id="new-total">100.0%</span>
+                                    </div>
                                     <span class="sum-warning" id="new-warning" style="display: none;">Summen overstiger 100%!</span>
                                 </div>
                             </div>
@@ -650,8 +656,16 @@
                         </div>
                         <div class="info-content">
                             <span class="info-label">Antall sykepleier årslønner siste år</span>
-                            <span class="info-value" id="nurse-index-last">-</span>
-                            <span class="info-sublabel">årslønner</span>
+                            <div class="info-value-row">
+                                <div class="info-value-group">
+                                    <span class="info-value" id="nurse-index-last">-</span>
+                                    <span class="info-sublabel">årslønner</span>
+                                </div>
+                                <span class="info-growth" id="nurse-index-growth" style="display: none;">
+                                    <span class="growth-total" id="nurse-growth-total"></span>
+                                    <span class="growth-annual" id="nurse-growth-annual"></span>
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -801,7 +815,7 @@
     <div class="modal-overlay" id="year-by-year-modal">
         <div class="modal-content year-by-year-modal">
             <div class="modal-header">
-                <h2>Årlig avkastning og standardavvik</h2>
+                <h2>Årlig avkastning og akkumulert avkastning</h2>
                 <div class="modal-header-actions">
                     <button class="fullscreen-modal-btn" id="year-by-year-fullscreen-btn" title="Fullskjerm">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -818,9 +832,9 @@
                             <tr>
                                 <th>År</th>
                                 <th>Avkastning<br>Dagens Portefølje</th>
-                                <th>Standardavvik<br>Dagens Portefølje</th>
+                                <th>Akkumulert avkastning<br>Dagens Portefølje</th>
                                 <th>Avkastning<br>Ny Portefølje</th>
-                                <th>Standardavvik<br>Ny Portefølje</th>
+                                <th>Akkumulert avkastning<br>Ny Portefølje</th>
                             </tr>
                         </thead>
                         <tbody id="year-by-year-table-body">
