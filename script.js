@@ -31,10 +31,14 @@ const state = {
         equity: null,
         drawdown: null,
         nurse: null,
+        nurse1: null,
+        nurse2: null,
+        nurse3: null,
         allocation: null,
         currentTreemap: null,
         newTreemap: null
     },
+    activeNurseTab: 1, // Track which nurse tab is active
     fullscreenChart: null,
     drawdownZoom: {
         isZoomed: false,
@@ -52,128 +56,128 @@ const state = {
 // ========================================
 // CSV Data (Embedded for CORS compatibility)
 // ========================================
-const csvData = `Dato,Risikofri_Rente,High_Yield,Aksjer_Global,Sykepleier_Lonn
-1995-01-01,100.00,100.00,100.00,220000
-1995-04-01,101.25,101.80,105.20,220000
-1995-07-01,102.51,103.64,112.45,220000
-1995-10-01,103.78,105.50,108.30,220000
-1996-01-01,105.07,107.40,115.80,228000
-1996-04-01,106.37,109.32,122.50,228000
-1996-07-01,107.68,111.28,128.90,228000
-1996-10-01,109.01,113.27,135.20,228000
-1997-01-01,110.35,115.29,142.80,237000
-1997-04-01,111.71,117.35,155.30,237000
-1997-07-01,113.08,119.44,168.20,237000
-1997-10-01,114.47,121.57,162.50,237000
-1998-01-01,115.87,123.74,175.80,246000
-1998-04-01,117.29,125.94,182.30,246000
-1998-07-01,118.72,128.18,170.50,246000
-1998-10-01,120.17,118.50,155.80,246000
-1999-01-01,121.63,122.40,168.90,256000
-1999-04-01,123.11,126.50,185.60,256000
-1999-07-01,124.61,130.70,195.20,256000
-1999-10-01,126.12,135.10,215.80,256000
-2000-01-01,127.65,139.60,238.50,267000
-2000-04-01,129.19,144.30,225.30,267000
-2000-07-01,130.75,149.10,210.80,267000
-2000-10-01,132.33,142.50,195.60,267000
-2001-01-01,133.92,136.80,185.20,278000
-2001-04-01,135.53,131.50,175.80,278000
-2001-07-01,137.16,126.60,165.30,278000
-2001-10-01,138.80,122.10,148.90,278000
-2002-01-01,140.46,118.20,142.50,290000
-2002-04-01,142.14,114.80,138.20,290000
-2002-07-01,143.84,111.90,125.60,290000
-2002-10-01,145.56,109.50,118.30,290000
-2003-01-01,147.29,112.80,115.20,302000
-2003-04-01,149.05,118.50,125.80,302000
-2003-07-01,150.82,124.60,138.50,302000
-2003-10-01,152.61,131.20,152.80,302000
-2004-01-01,154.42,138.30,165.30,315000
-2004-04-01,156.25,145.80,172.50,315000
-2004-07-01,158.10,153.70,178.20,315000
-2004-10-01,159.97,162.10,188.60,315000
-2005-01-01,161.86,171.00,198.50,329000
-2005-04-01,163.77,180.40,205.80,329000
-2005-07-01,165.70,190.30,215.60,329000
-2005-10-01,167.66,200.80,228.30,329000
-2006-01-01,169.63,211.90,245.80,343000
-2006-04-01,171.63,223.50,258.60,343000
-2006-07-01,173.65,235.80,268.30,343000
-2006-10-01,175.69,248.60,282.50,343000
-2007-01-01,177.76,262.10,298.80,358000
-2007-04-01,179.84,276.20,315.60,358000
-2007-07-01,181.95,290.90,328.50,358000
-2007-10-01,184.08,275.80,312.30,358000
-2008-01-01,186.24,260.50,285.60,374000
-2008-04-01,188.42,245.80,268.30,374000
-2008-07-01,190.63,215.60,242.50,374000
-2008-10-01,192.86,175.30,178.60,374000
-2009-01-01,195.12,158.20,155.80,391000
-2009-04-01,197.40,175.60,178.50,391000
-2009-07-01,199.71,195.80,205.30,391000
-2009-10-01,202.04,218.50,232.80,391000
-2010-01-01,204.40,242.80,258.60,408000
-2010-04-01,206.78,268.50,275.30,408000
-2010-07-01,209.19,295.80,268.50,408000
-2010-10-01,211.62,324.60,298.60,408000
-2011-01-01,214.08,355.20,318.50,426000
-2011-04-01,216.57,388.60,335.80,426000
-2011-07-01,219.08,378.50,305.60,426000
-2011-10-01,221.62,365.80,285.30,426000
-2012-01-01,224.19,378.50,315.60,445000
-2012-04-01,226.79,392.80,338.50,445000
-2012-07-01,229.41,408.50,355.80,445000
-2012-10-01,232.06,425.60,378.50,445000
-2013-01-01,234.74,445.80,412.30,465000
-2013-04-01,237.45,468.50,438.60,465000
-2013-07-01,240.18,492.80,465.80,465000
-2013-10-01,242.95,518.60,498.50,465000
-2014-01-01,245.74,545.80,525.60,486000
-2014-04-01,248.56,575.50,548.30,486000
-2014-07-01,251.41,608.80,565.80,486000
-2014-10-01,254.29,642.50,582.50,486000
-2015-01-01,257.20,678.60,598.60,508000
-2015-04-01,260.14,718.50,625.30,508000
-2015-07-01,263.11,762.80,598.50,508000
-2015-10-01,266.11,798.60,615.80,508000
-2016-01-01,269.14,825.50,585.60,531000
-2016-04-01,272.20,858.80,618.50,531000
-2016-07-01,275.30,895.60,645.80,531000
-2016-10-01,278.42,935.80,678.30,531000
-2017-01-01,281.58,978.50,715.60,555000
-2017-04-01,284.77,1025.80,755.80,555000
-2017-07-01,287.99,1078.50,798.50,555000
-2017-10-01,291.24,1135.80,845.60,555000
-2018-01-01,294.53,1198.60,895.80,580000
-2018-04-01,297.85,1268.50,925.60,580000
-2018-07-01,301.20,1345.80,958.50,580000
-2018-10-01,304.59,1285.60,875.30,580000
-2019-01-01,308.01,1365.80,915.60,606000
-2019-04-01,311.47,1458.50,985.80,606000
-2019-07-01,314.96,1565.80,1025.50,606000
-2019-10-01,318.49,1685.60,1085.80,606000
-2020-01-01,322.05,1815.80,1145.60,633000
-2020-04-01,325.65,1525.60,885.30,633000
-2020-07-01,329.29,1685.80,1025.50,633000
-2020-10-01,332.96,1875.50,1185.80,633000
-2021-01-01,336.67,2085.60,1325.60,661000
-2021-04-01,340.42,2325.80,1485.80,661000
-2021-07-01,344.20,2598.50,1625.60,661000
-2021-10-01,348.02,2885.80,1785.30,661000
-2022-01-01,351.88,3025.60,1685.80,690000
-2022-04-01,355.78,2785.50,1485.60,690000
-2022-07-01,359.72,2565.80,1385.30,690000
-2022-10-01,363.70,2685.60,1485.80,690000
-2023-01-01,367.72,2885.80,1585.60,720000
-2023-04-01,371.78,3125.50,1725.80,720000
-2023-07-01,375.88,3385.80,1865.50,720000
-2023-10-01,380.02,3565.60,1985.30,720000
-2024-01-01,384.21,3785.80,2125.60,751000
-2024-04-01,388.43,3985.50,2285.80,751000
-2024-07-01,392.70,4185.80,2425.60,751000
-2024-10-01,397.01,4385.60,2565.30,751000
-2024-12-01,400.25,4525.80,2685.50,751000`;
+const csvData = `Dato,Risikofri_Rente,High_Yield,Aksjer_Global,Sykepleier_Lonn,Gullprisen
+1995-01-01,100.00,100.00,100.00,220000,271.42
+1995-04-01,101.25,101.80,105.20,220000,271.42
+1995-07-01,102.51,103.64,112.45,220000,271.42
+1995-10-01,103.78,105.50,108.30,220000,271.42
+1996-01-01,105.07,107.40,115.80,228000,271.42
+1996-04-01,106.37,109.32,122.50,228000,271.42
+1996-07-01,107.68,111.28,128.90,228000,271.42
+1996-10-01,109.01,113.27,135.20,228000,271.42
+1997-01-01,110.35,115.29,142.80,237000,271.42
+1997-04-01,111.71,117.35,155.30,237000,271.42
+1997-07-01,113.08,119.44,168.20,237000,271.42
+1997-10-01,114.47,121.57,162.50,237000,271.42
+1998-01-01,115.87,123.74,175.80,246000,271.42
+1998-04-01,117.29,125.94,182.30,246000,271.42
+1998-07-01,118.72,128.18,170.50,246000,271.42
+1998-10-01,120.17,118.50,155.80,246000,271.42
+1999-01-01,121.63,122.40,168.90,256000,271.42
+1999-04-01,123.11,126.50,185.60,256000,271.42
+1999-07-01,124.61,130.70,195.20,256000,271.42
+1999-10-01,126.12,135.10,215.80,256000,271.42
+2000-01-01,127.65,139.60,238.50,267000,271.42
+2000-04-01,129.19,144.30,225.30,267000,271.42
+2000-07-01,130.75,149.10,210.80,267000,271.42
+2000-10-01,132.33,142.50,195.60,267000,271.42
+2001-01-01,133.92,136.80,185.20,278000,271.42
+2001-04-01,135.53,131.50,175.80,278000,273.15
+2001-07-01,137.16,126.60,165.30,278000,274.88
+2001-10-01,138.80,122.10,148.90,278000,276.62
+2002-01-01,140.46,118.20,142.50,290000,278.35
+2002-04-01,142.14,114.80,138.20,290000,294.31
+2002-07-01,143.84,111.90,125.60,290000,310.27
+2002-10-01,145.56,109.50,118.30,290000,326.24
+2003-01-01,147.29,112.80,115.20,302000,342.20
+2003-04-01,149.05,118.50,125.80,302000,360.45
+2003-07-01,150.82,124.60,138.50,302000,378.70
+2003-10-01,152.61,131.20,152.80,302000,396.95
+2004-01-01,154.42,138.30,165.30,315000,415.20
+2004-04-01,156.25,145.80,172.50,315000,418.10
+2004-07-01,158.10,153.70,178.20,315000,421.00
+2004-10-01,159.97,162.10,188.60,315000,423.90
+2005-01-01,161.86,171.00,198.50,329000,426.80
+2005-04-01,163.77,180.40,205.80,329000,452.60
+2005-07-01,165.70,190.30,215.60,329000,478.40
+2005-10-01,167.66,200.80,228.30,329000,504.20
+2006-01-01,169.63,211.90,245.80,343000,530.00
+2006-04-01,171.63,223.50,258.60,343000,556.42
+2006-07-01,173.65,235.80,268.30,343000,582.85
+2006-10-01,175.69,248.60,282.50,343000,609.28
+2007-01-01,177.76,262.10,298.80,358000,635.70
+2007-04-01,179.84,276.20,315.60,358000,685.90
+2007-07-01,181.95,290.90,328.50,358000,736.10
+2007-10-01,184.08,275.80,312.30,358000,786.30
+2008-01-01,186.24,260.50,285.60,374000,836.50
+2008-04-01,188.42,245.80,268.30,374000,846.00
+2008-07-01,190.63,215.60,242.50,374000,855.50
+2008-10-01,192.86,175.30,178.60,374000,865.00
+2009-01-01,195.12,158.20,155.80,391000,874.50
+2009-04-01,197.40,175.60,178.50,391000,934.12
+2009-07-01,199.71,195.80,205.30,391000,993.75
+2009-10-01,202.04,218.50,232.80,391000,1053.38
+2010-01-01,204.40,242.80,258.60,408000,1113.00
+2010-04-01,206.78,268.50,275.30,408000,1181.88
+2010-07-01,209.19,295.80,268.50,408000,1250.75
+2010-10-01,211.62,324.60,298.60,408000,1319.62
+2011-01-01,214.08,355.20,318.50,426000,1388.50
+2011-04-01,216.57,388.60,335.80,426000,1440.88
+2011-07-01,219.08,378.50,305.60,426000,1493.25
+2011-10-01,221.62,365.80,285.30,426000,1545.62
+2012-01-01,224.19,378.50,315.60,445000,1598.00
+2012-04-01,226.79,392.80,338.50,445000,1612.88
+2012-07-01,229.41,408.50,355.80,445000,1627.75
+2012-10-01,232.06,425.60,378.50,445000,1642.62
+2013-01-01,234.74,445.80,412.30,465000,1657.50
+2013-04-01,237.45,468.50,438.60,465000,1549.38
+2013-07-01,240.18,492.80,465.80,465000,1441.25
+2013-10-01,242.95,518.60,498.50,465000,1333.12
+2014-01-01,245.74,545.80,525.60,486000,1225.00
+2014-04-01,248.56,575.50,548.30,486000,1214.75
+2014-07-01,251.41,608.80,565.80,486000,1204.50
+2014-10-01,254.29,642.50,582.50,486000,1194.25
+2015-01-01,257.20,678.60,598.60,508000,1184.00
+2015-04-01,260.14,718.50,625.30,508000,1158.50
+2015-07-01,263.11,762.80,598.50,508000,1133.00
+2015-10-01,266.11,798.60,615.80,508000,1107.50
+2016-01-01,269.14,825.50,585.60,531000,1082.00
+2016-04-01,272.20,858.80,618.50,531000,1102.00
+2016-07-01,275.30,895.60,645.80,531000,1122.00
+2016-10-01,278.42,935.80,678.30,531000,1142.00
+2017-01-01,281.58,978.50,715.60,555000,1162.00
+2017-04-01,284.77,1025.80,755.80,555000,1207.34
+2017-07-01,287.99,1078.50,798.50,555000,1252.67
+2017-10-01,291.24,1135.80,845.60,555000,1298.01
+2018-01-01,294.53,1198.60,895.80,580000,1343.35
+2018-04-01,297.85,1268.50,925.60,580000,1338.14
+2018-07-01,301.20,1345.80,958.50,580000,1332.92
+2018-10-01,304.59,1285.60,875.30,580000,1327.71
+2019-01-01,308.01,1365.80,915.60,606000,1322.50
+2019-04-01,311.47,1458.50,985.80,606000,1387.09
+2019-07-01,314.96,1565.80,1025.50,606000,1451.67
+2019-10-01,318.49,1685.60,1085.80,606000,1516.26
+2020-01-01,322.05,1815.80,1145.60,633000,1580.85
+2020-04-01,325.65,1525.60,885.30,633000,1648.06
+2020-07-01,329.29,1685.80,1025.50,633000,1715.28
+2020-10-01,332.96,1875.50,1185.80,633000,1782.49
+2021-01-01,336.67,2085.60,1325.60,661000,1849.70
+2021-04-01,340.42,2325.80,1485.80,661000,1836.31
+2021-07-01,344.20,2598.50,1625.60,661000,1822.91
+2021-10-01,348.02,2885.80,1785.30,661000,1809.51
+2022-01-01,351.88,3025.60,1685.80,690000,1796.12
+2022-04-01,355.78,2785.50,1485.60,690000,1829.12
+2022-07-01,359.72,2565.80,1385.30,690000,1862.12
+2022-10-01,363.70,2685.60,1485.80,690000,1895.12
+2023-01-01,367.72,2885.80,1585.60,720000,1928.12
+2023-04-01,371.78,3125.50,1725.80,720000,1955.88
+2023-07-01,375.88,3385.80,1865.50,720000,1983.63
+2023-10-01,380.02,3565.60,1985.30,720000,2011.39
+2024-01-01,384.21,3785.80,2125.60,751000,2039.15
+2024-04-01,388.43,3985.50,2285.80,751000,2228.91
+2024-07-01,392.70,4185.80,2425.60,751000,2418.68
+2024-10-01,397.01,4385.60,2565.30,751000,2608.44
+2024-12-01,400.25,4525.80,2685.50,751000,4336.12`;
 
 // ========================================
 // CSV Parser
@@ -224,6 +228,9 @@ function parseCSV(csvString) {
             } else if (header.toLowerCase().includes('sykepleierlønn') || header.toLowerCase().includes('sykepleier_lonn')) {
                 const numValue = value.replace(/\s/g, '').replace(',', '.');
                 row.nurseSalary = parseFloat(numValue);
+            } else if (header.toLowerCase().includes('gullprisen') || header.toLowerCase().includes('gullpris')) {
+                const numValue = value.replace(/\s/g, '').replace(',', '.');
+                row.goldPrice = parseFloat(numValue);
             } else if (header.toLowerCase() === 'kpi') {
                 const numValue = value.replace(/\s/g, '').replace(',', '.');
                 row.kpi = parseFloat(numValue);
@@ -354,7 +361,8 @@ function calculatePortfolioValue(data, allocation, startCapital) {
         values.push({
             date: row.date,
             value: portfolioValue,
-            nurseSalary: row.nurseSalary
+            nurseSalary: row.nurseSalary,
+            goldPrice: row.goldPrice
         });
     });
     
@@ -845,7 +853,8 @@ const chartColors = {
     stocks: 'oklch(0.6020 0.1679 258.6201)', // chart-3
     riskFree: 'oklch(0.7450 0.1024 258.2961)', // chart-2
     highYield: 'oklch(0.8479 0.0603 257.7878)', // chart-1
-    nurse: 'oklch(0.55 0.18 145)' // Green color for nurse index line
+    nurse: 'oklch(0.55 0.18 145)', // Green color for nurse index line
+    gold: 'oklch(0.65 0.15 75)' // Gold color for gold price index line
 };
 
 const commonChartOptions = {
@@ -1652,6 +1661,9 @@ function createAllocationChart() {
             state.startCapital
         );
         
+        // Set this for tooltip calculation
+        valuesWithoutRebalancingForTooltip = valuesWithoutRebalancing;
+        
         console.log('Values without rebalancing calculated, length:', valuesWithoutRebalancing.length);
         if (valuesWithoutRebalancing.length > 0) {
             const first = valuesWithoutRebalancing[0];
@@ -1694,18 +1706,39 @@ function createAllocationChart() {
             // Extract oklch values and add opacity for fill
             const colorWithOpacity = asset.color.replace(')', ' / 0.6)');
             
-            // Calculate the actual percentage at the end of the period for label
-            const lastValue = valuesWithoutRebalancing[valuesWithoutRebalancing.length - 1];
-            const totalValue = lastValue.stocks + lastValue.riskFree + lastValue.highYield + 
-                              lastValue.nordicStocks + lastValue.emergingMarkets;
+            // Calculate the actual percentage from the last data point (to match what tooltip shows)
+            // Use the last data point with actual values (skip any with 0 values at the end)
+            let lastValue = null;
+            for (let i = valuesWithoutRebalancing.length - 1; i >= 0; i--) {
+                const val = valuesWithoutRebalancing[i];
+                const total = (val.stocks || 0) + (val.riskFree || 0) + (val.highYield || 0) + 
+                             (val.nordicStocks || 0) + (val.emergingMarkets || 0);
+                if (total > 0) {
+                    lastValue = val;
+                    break;
+                }
+            }
+            
+            // Fallback to last element if all are 0
+            if (!lastValue && valuesWithoutRebalancing.length > 0) {
+                lastValue = valuesWithoutRebalancing[valuesWithoutRebalancing.length - 1];
+            }
+            
+            const totalValue = (lastValue?.stocks || 0) + (lastValue?.riskFree || 0) + (lastValue?.highYield || 0) + 
+                              (lastValue?.nordicStocks || 0) + (lastValue?.emergingMarkets || 0);
+            const assetValue = lastValue?.[asset.key] || 0;
             const actualPercent = totalValue > 0 
-                ? (lastValue[asset.key] / totalValue) * 100 
+                ? (assetValue / totalValue) * 100 
                 : state.newPortfolio[asset.key];
             
-            console.log(`Asset ${asset.name}: Start=${state.newPortfolio[asset.key]}%, End=${actualPercent.toFixed(1)}%`);
+            console.log(`Asset ${asset.name}: Start=${state.newPortfolio[asset.key]}%, Last point=${actualPercent.toFixed(1)}%`);
+            console.log(`  - lastValue[${asset.key}]:`, assetValue, 'totalValue:', totalValue);
+            
+            const finalLabel = `${asset.name} (${actualPercent.toFixed(1)}%)`;
+            console.log(`  - Final label for ${asset.name}:`, finalLabel);
             
             return {
-                label: `${asset.name} (${Math.round(actualPercent)}%)`,
+                label: finalLabel,
                 data: valuesWithoutRebalancing.map(v => ({ 
                     x: v.date, 
                     y: v[asset.key] 
@@ -1734,6 +1767,12 @@ function createAllocationChart() {
     }
     
     // valuesWithoutRebalancingForTooltip is already set in the else branch above if needed
+    
+    // Log datasets labels before creating chart
+    console.log('Datasets labels before creating chart:');
+    datasets.forEach((ds, idx) => {
+        console.log(`  Dataset ${idx}: ${ds.label}`);
+    });
     
     // Create new chart immediately
     state.charts.allocation = new Chart(ctx, {
@@ -1801,6 +1840,587 @@ function createAllocationChart() {
         }
     });
     console.log('Allocation chart created successfully with', datasets.length, 'datasets, rebalancing:', state.allocationRebalancing);
+    
+    // Force update of legend to show correct labels
+    if (state.charts.allocation) {
+        state.charts.allocation.update('none'); // Update without animation
+    }
+}
+
+// Bubble chart state
+let bubbleChartState = {
+    animationId: null,
+    animationTimeoutId: null,
+    isPlaying: false,
+    currentYear: 0,
+    animationSpeed: 1000, // ms per year (1 second per year)
+    simulationData: null,
+    controlsInitialized: false
+};
+
+function createBubbleChart() {
+    const canvas = document.getElementById('bubble-chart');
+    if (!canvas) {
+        console.warn('Bubble chart canvas not found');
+        return;
+    }
+    
+    // Clear any existing animation
+    if (bubbleChartState.animationId) {
+        cancelAnimationFrame(bubbleChartState.animationId);
+        bubbleChartState.animationId = null;
+    }
+    
+    // Make sure canvas is visible before getting dimensions
+    canvas.style.display = 'block';
+    
+    const ctx = canvas.getContext('2d');
+    const parent = canvas.parentElement;
+    const width = parent ? parent.clientWidth : 800;
+    const height = parent ? parent.clientHeight : 400;
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Set canvas size
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    ctx.scale(dpr, dpr);
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    
+    console.log('Bubble chart canvas size:', width, 'x', height);
+    
+    // Get asset classes with allocation > 0 - use EXACT colors from CSS variables
+    // Map each asset class to its CSS variable (same as asset-cell uses)
+    const cssVarMap = {
+        'stocks': '--chart-violet-blue',           // .asset-cell.stocks uses var(--chart-violet-blue)
+        'risikofri': '--risikofri-color',          // .asset-cell.risikofri uses var(--risikofri-color) = var(--chart-4)
+        'highyield': '--chart-crayola-blue',       // .asset-cell.highyield uses var(--chart-crayola-blue)
+        'nordicstocks': '--chart-4',               // .asset-cell.nordicstocks uses var(--chart-4)
+        'emergingmarkets': '--chart-5'             // .asset-cell.emergingmarkets uses var(--chart-5)
+    };
+    
+    // Helper to convert CSS variable (oklch) to RGB
+    const getRGBFromCSSVar = (varName) => {
+        const root = document.documentElement;
+        const oklchValue = getComputedStyle(root).getPropertyValue(varName).trim();
+        console.log(`getRGBFromCSSVar(${varName}): oklch = ${oklchValue}`);
+        
+        // Create temp element with oklch color to get RGB
+        const temp = document.createElement('div');
+        temp.style.backgroundColor = oklchValue;
+        temp.style.position = 'absolute';
+        temp.style.visibility = 'hidden';
+        temp.style.width = '1px';
+        temp.style.height = '1px';
+        document.body.appendChild(temp);
+        let rgbColor = window.getComputedStyle(temp).backgroundColor;
+        document.body.removeChild(temp);
+        
+        // If still in oklch format, try again with explicit oklch() wrapper
+        if (rgbColor.includes('oklch') || !rgbColor.match(/rgba?\(/)) {
+            console.warn(`getRGBFromCSSVar(${varName}): Still oklch after first attempt: ${rgbColor}`);
+            const temp2 = document.createElement('div');
+            // Ensure oklch format is correct
+            const oklchFormatted = oklchValue.startsWith('oklch') ? oklchValue : `oklch(${oklchValue})`;
+            temp2.style.backgroundColor = oklchFormatted;
+            temp2.style.position = 'absolute';
+            temp2.style.visibility = 'hidden';
+            temp2.style.width = '1px';
+            temp2.style.height = '1px';
+            document.body.appendChild(temp2);
+            rgbColor = window.getComputedStyle(temp2).backgroundColor;
+            document.body.removeChild(temp2);
+            console.log(`getRGBFromCSSVar(${varName}): second attempt rgb = ${rgbColor}`);
+        }
+        
+        console.log(`getRGBFromCSSVar(${varName}): FINAL rgb = ${rgbColor}`);
+        return rgbColor;
+    };
+    
+    const allAssetClasses = [
+        { key: 'stocks', name: 'Aksjer Global', cssVar: cssVarMap['stocks'], risk: 3 },
+        { key: 'riskFree', name: 'Bankinnskudd', cssVar: cssVarMap['risikofri'], risk: 1 },
+        { key: 'highYield', name: 'High Yield', cssVar: cssVarMap['highyield'], risk: 2 },
+        { key: 'nordicStocks', name: 'Aksjer Norden', cssVar: cssVarMap['nordicstocks'], risk: 3 },
+        { key: 'emergingMarkets', name: 'Aksjer Emerging Markets', cssVar: cssVarMap['emergingmarkets'], risk: 4 }
+    ];
+    
+    // Get colors from CSS variables and convert to RGB (EXACT same as input tab)
+    allAssetClasses.forEach(asset => {
+        asset.color = getRGBFromCSSVar(asset.cssVar);
+        console.log(`Asset ${asset.name} (${asset.key}): final color = ${asset.color}`);
+    });
+    
+    // Filter to only show asset classes that have > 0 allocation in input tab
+    // If user selected 4 asset classes, show 4 bubbles with those exact classes
+    const assetClasses = allAssetClasses.filter(asset => state.newPortfolio[asset.key] > 0);
+    
+    if (assetClasses.length === 0) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'var(--foreground)';
+        ctx.font = '16px Inter';
+        ctx.textAlign = 'center';
+        ctx.fillText('Ingen aktivaklasser valgt', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+    
+    // Use EXACT same calculation as "uten rebalansering" tab
+    const filteredData = getFilteredData();
+    if (!filteredData || filteredData.length < 2) {
+        console.warn('Insufficient data for bubble chart');
+        return;
+    }
+    
+    // DEBUG: Log portfolio allocation before calculation
+    console.log('=== BUBBLE CHART DEBUG ===');
+    console.log('Portfolio allocation from state.newPortfolio:');
+    assetClasses.forEach(asset => {
+        console.log(`  ${asset.name} (${asset.key}): ${state.newPortfolio[asset.key]}%`);
+    });
+    console.log('Start capital:', state.startCapital);
+    
+    // Calculate values without rebalancing - EXACT same as allocation chart
+    const valuesWithoutRebalancing = calculateAssetClassValueWithoutRebalancing(
+        filteredData,
+        state.newPortfolio, // Use % from input tab
+        state.startCapital
+    );
+    
+    // DEBUG: Log first and last data points to verify values
+    if (valuesWithoutRebalancing.length > 0) {
+        console.log('First data point (year 2001):');
+        assetClasses.forEach(asset => {
+            const value = valuesWithoutRebalancing[0][asset.key] || 0;
+            console.log(`  ${asset.name} (${asset.key}): ${value.toFixed(2)} MNOK`);
+        });
+        const lastIndex = valuesWithoutRebalancing.length - 1;
+        console.log(`Last data point (year ${filteredData[lastIndex].date.getFullYear()}):`);
+        assetClasses.forEach(asset => {
+            const value = valuesWithoutRebalancing[lastIndex][asset.key] || 0;
+            console.log(`  ${asset.name} (${asset.key}): ${value.toFixed(2)} MNOK`);
+        });
+    }
+    
+    // Get start year from data (should be 2001)
+    const startYear = filteredData[0].date.getFullYear();
+    const endYear = filteredData[filteredData.length - 1].date.getFullYear();
+    const totalYears = endYear - startYear;
+    
+    // Create simulation data YEAR BY YEAR (not month by month)
+    // Group data points by year and use the LAST data point of each year
+    const simulationData = [];
+    const yearMap = new Map();
+    
+    // Group all data points by year
+    valuesWithoutRebalancing.forEach((dataPoint, index) => {
+        const year = filteredData[index].date.getFullYear();
+        
+        // Store the last data point for each year (overwrites previous months)
+        yearMap.set(year, { dataPoint, index });
+    });
+    
+    // Create simulation data for each unique year
+    const sortedYears = Array.from(yearMap.keys()).sort((a, b) => a - b);
+    sortedYears.forEach(year => {
+        const { dataPoint, index } = yearMap.get(year);
+        const yearData = { year, assets: [], yearIndex: index };
+        
+        // CRITICAL: Calculate totalValue from ALL asset classes (same as "uten rebalansering" graph)
+        // This ensures percentages match exactly with the "uten rebalansering" graph
+        const totalValue = (dataPoint.stocks || 0) + (dataPoint.riskFree || 0) + (dataPoint.highYield || 0) + 
+                          (dataPoint.nordicStocks || 0) + (dataPoint.emergingMarkets || 0);
+        
+        assetClasses.forEach(asset => {
+            // CRITICAL: Check if the key exists in dataPoint
+            let currentValue = 0;
+            if (dataPoint.hasOwnProperty(asset.key)) {
+                currentValue = dataPoint[asset.key] || 0;
+            } else {
+                console.error(`ERROR: Key '${asset.key}' not found in dataPoint. Available keys:`, Object.keys(dataPoint));
+                // Try to find the value anyway
+                currentValue = dataPoint[asset.key] || 0;
+            }
+            
+            // DEBUG: Log if value is 0 or missing
+            if (currentValue === 0 || !dataPoint[asset.key]) {
+                console.warn(`WARNING: ${asset.name} (${asset.key}) has value 0 or missing in year ${year}. Portfolio allocation: ${state.newPortfolio[asset.key]}%`);
+                console.warn(`  dataPoint keys:`, Object.keys(dataPoint));
+                console.warn(`  dataPoint[${asset.key}]:`, dataPoint[asset.key]);
+            }
+            
+            // Preserve the color from asset class
+            yearData.assets.push({
+                ...asset,
+                value: currentValue,
+                color: asset.color // Ensure color is preserved
+            });
+        });
+        
+        // Calculate percentages from actual values (same as "uten rebalansering")
+        // Use totalValue from ALL asset classes to match "uten rebalansering" graph exactly
+        yearData.assets.forEach(asset => {
+            asset.percentage = totalValue > 0 ? (asset.value / totalValue) * 100 : state.newPortfolio[asset.key];
+        });
+        
+        yearData.totalValue = totalValue;
+        simulationData.push(yearData);
+    });
+    
+    bubbleChartState.simulationData = simulationData;
+    bubbleChartState.currentYear = 0; // Index 0 = first year (2001)
+    
+    // Find max value for scaling
+    const maxValue = Math.max(...simulationData.map(d => d.totalValue));
+    
+    // Setup controls with correct year range
+    setupBubbleChartControls(canvas, ctx, assetClasses, maxValue, startYear);
+    
+    // Draw initial state (year 2001)
+    drawBubbleChart(canvas, ctx, simulationData[0], assetClasses, maxValue);
+}
+
+// Helper function to convert CSS color (rgb/rgba/oklch) to canvas rgba format
+function cssColorToCanvasColor(cssColor) {
+    console.log(`cssColorToCanvasColor input: ${cssColor}`);
+    
+    // If it's already in rgb/rgba format, use it directly
+    const rgbMatch = cssColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
+    if (rgbMatch) {
+        const result = `rgba(${rgbMatch[1]}, ${rgbMatch[2]}, ${rgbMatch[3]}, 1.0)`;
+        console.log(`cssColorToCanvasColor output (rgb): ${result}`);
+        return result;
+    }
+    
+    // If it's in oklch format, convert it using a canvas (browsers support oklch in canvas)
+    if (cssColor.includes('oklch')) {
+        // Create a temporary canvas to convert oklch to RGB
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = 1;
+        tempCanvas.height = 1;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        // Set fill style to oklch color - canvas supports oklch!
+        tempCtx.fillStyle = cssColor;
+        tempCtx.fillRect(0, 0, 1, 1);
+        
+        // Get the pixel data to extract RGB values
+        const imageData = tempCtx.getImageData(0, 0, 1, 1);
+        const r = imageData.data[0];
+        const g = imageData.data[1];
+        const b = imageData.data[2];
+        
+        const result = `rgba(${r}, ${g}, ${b}, 1.0)`;
+        console.log(`cssColorToCanvasColor output (oklch->rgb via canvas): ${result}`);
+        return result;
+    }
+    
+    console.warn(`cssColorToCanvasColor: Could not parse color ${cssColor}, using fallback`);
+    return 'rgba(100, 150, 200, 1.0)'; // Fallback
+}
+
+function drawBubbleChart(canvas, ctx, yearData, assetClasses, maxValue) {
+    // Clear canvas - use actual canvas dimensions (not scaled)
+    const actualWidth = canvas.width / (window.devicePixelRatio || 1);
+    const actualHeight = canvas.height / (window.devicePixelRatio || 1);
+    ctx.clearRect(0, 0, actualWidth, actualHeight);
+    
+    const padding = 60;
+    const chartWidth = actualWidth - 2 * padding;
+    const chartHeight = actualHeight - 2 * padding;
+    
+    console.log('Drawing bubble chart - year:', yearData.year, 'assets:', yearData.assets.length, 'maxValue:', maxValue);
+    
+    // Draw year label - show actual year (2001, 2002, etc.)
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--foreground') || '#000';
+    ctx.font = 'bold 18px Inter';
+    ctx.textAlign = 'center';
+    ctx.fillText(yearData.year.toString(), actualWidth / 2, 30);
+    
+    // Sort assets by VALUE (MNOK) - largest first
+    const sortedAssets = [...yearData.assets].sort((a, b) => b.value - a.value);
+    
+    // DEBUG: Log sorted assets to verify order
+    console.log(`=== SORTED ASSETS FOR YEAR ${yearData.year} ===`);
+    sortedAssets.forEach((asset, index) => {
+        console.log(`${index + 1}. ${asset.name} (${asset.key}): ${asset.value.toFixed(2)} MNOK (${asset.percentage.toFixed(1)}%)`);
+    });
+    
+    // Calculate bubble sizes based on VALUE (MNOK) - DRAMATICALLY amplify differences
+    // A bubble with 20 MNOK should be MUCH larger than one with 2 MNOK
+    // Use exponential scaling: 10% difference in value = 30% difference in size
+    // Formula: size = min + (normalizedValue^power) * (max - min)
+    // INCREASED sizes: min 60px, max calculated based on available space
+    // Lower power (0.3) = MORE dramatic size differences
+    const minRadius = 60;
+    
+    // Calculate max radius based on available canvas space
+    // Leave padding and ensure largest bubble fits
+    const maxBubbleDiameter = Math.min(
+        (actualWidth - 80) / 2,  // Max half width (leave 40px padding each side)
+        (actualHeight - 120) / 2  // Max half height (leave 60px top + 60px bottom for controls)
+    );
+    const maxRadius = Math.max(minRadius, maxBubbleDiameter);
+    
+    const power = 0.3; // Lower power = MORE amplification (10% value diff -> 40%+ size diff)
+    
+    // Find min and max values for normalization
+    const maxAssetValue = Math.max(...sortedAssets.map(a => a.value));
+    const minAssetValue = Math.min(...sortedAssets.map(a => a.value));
+    const valueRange = maxAssetValue - minAssetValue;
+    
+    // CRITICAL: Minimum bubble size corresponds to 3 MNOK
+    // Calculate what radius a 3 MNOK bubble should have
+    const MINIMUM_BUBBLE_VALUE = 3000000; // 3 MNOK
+    const effectiveMinValue = Math.min(minAssetValue, MINIMUM_BUBBLE_VALUE);
+    const effectiveRange = maxAssetValue - effectiveMinValue;
+    
+    const bubbles = sortedAssets.map(asset => {
+        // Normalize value to 0-1 range, where 3 MNOK = 0 (minimum size)
+        const normalizedValue = effectiveRange > 0 
+            ? (asset.value - effectiveMinValue) / effectiveRange 
+            : 0.5; // If all values are same, use middle size
+        
+        // Use inverse power (power < 1) to amplify differences
+        // Power of 0.3 means: 10% value diff becomes ~40%+ size diff
+        const amplified = Math.pow(normalizedValue, power);
+        const radius = minRadius + amplified * (maxRadius - minRadius);
+        
+        // Ensure minimum size (minRadius) corresponds to 3 MNOK
+        const finalRadius = Math.max(minRadius, radius);
+        
+        console.log(`Bubble ${asset.name}: value=${asset.value.toFixed(2)} MNOK, normalized=${normalizedValue.toFixed(3)}, amplified=${amplified.toFixed(3)}, radius=${finalRadius.toFixed(1)}`);
+        return { ...asset, radius: finalRadius };
+    });
+    
+    // Center point for all bubbles
+    const centerX = actualWidth / 2;
+    const centerY = actualHeight / 2;
+    
+    // Arrange bubbles side by side horizontally, centered, with proper spacing
+    // Calculate total width needed - ensure it fits within canvas
+    let totalWidth = 0;
+    bubbles.forEach(bubble => {
+        totalWidth += bubble.radius * 2;
+    });
+    // Add spacing between bubbles (minimum 20px)
+    const spacing = 20;
+    totalWidth += spacing * (bubbles.length - 1);
+    
+    // Scale down if bubbles don't fit
+    const maxWidth = actualWidth - 80; // Leave 40px padding on each side
+    if (totalWidth > maxWidth && totalWidth > 0) {
+        const scale = maxWidth / totalWidth;
+        bubbles.forEach(bubble => {
+            bubble.radius = Math.max(minRadius * 0.5, bubble.radius * scale); // Ensure minimum radius is at least 50% of minRadius
+        });
+        totalWidth = maxWidth;
+    }
+    
+    // Ensure all bubbles have valid radius
+    bubbles.forEach(bubble => {
+        if (bubble.radius <= 0 || isNaN(bubble.radius)) {
+            bubble.radius = minRadius; // Fallback to minimum radius
+        }
+    });
+    
+    // Start position to center all bubbles
+    let currentX = centerX - totalWidth / 2;
+    
+    // Position bubbles horizontally, centered vertically
+    bubbles.forEach((bubble, index) => {
+        const x = currentX + bubble.radius;
+        const y = centerY;
+        
+        // Move position for next bubble
+        currentX += bubble.radius * 2 + spacing;
+        
+        bubble.x = x;
+        bubble.y = y;
+        
+        console.log(`Drawing bubble: ${bubble.name}, color: ${bubble.color}, value: ${bubble.value}, radius: ${bubble.radius}`);
+        
+        // Convert CSS color to rgba for canvas - colors already match input tab exactly
+        const fillColor = cssColorToCanvasColor(bubble.color);
+        console.log(`  -> fillColor: ${fillColor}`);
+        
+        // VERIFY: Log each bubble's unique color to prove they're different
+        console.log(`✓ BUBBLE COLOR VERIFICATION: ${bubble.name} = ${fillColor}`);
+        
+        // Draw bubble with solid color (no gradient) to match input tab exactly
+        ctx.globalAlpha = 1.0;
+        ctx.beginPath();
+        ctx.arc(bubble.x, bubble.y, bubble.radius, 0, Math.PI * 2);
+        ctx.fillStyle = fillColor; // Full opacity to match input tab
+        ctx.fill();
+        
+        // Draw stroke with same color but slightly darker
+        ctx.strokeStyle = fillColor;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Draw text - use EXACT same fonts as input tab
+        // Input tab uses: --font-mono (JetBrains Mono) for values, --font-sans (Inter) for labels
+        // Use white text with dark outline for maximum readability
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+        ctx.lineWidth = 5;
+        ctx.lineJoin = 'round';
+        ctx.miterLimit = 2;
+        
+        // Draw asset name at top - use Inter (sans-serif) like input tab labels
+        // Smaller text size for readability
+        const nameFontSize = Math.max(12, Math.min(18, bubble.radius * 0.12));
+        ctx.font = `600 ${nameFontSize}px 'Inter', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = 2;
+        
+        const nameY = bubble.y - bubble.radius * 0.25;
+        ctx.strokeText(bubble.name, bubble.x, nameY);
+        ctx.fillText(bubble.name, bubble.x, nameY);
+        
+        // Draw percentage in center - WITH % sign
+        // Smaller text size for readability
+        const percentFontSize = Math.max(14, Math.min(24, bubble.radius * 0.15));
+        ctx.font = `700 ${percentFontSize}px 'JetBrains Mono', monospace`; // Use mono like input tab values
+        ctx.lineWidth = 2;
+        const percentText = bubble.percentage.toFixed(1) + '%';
+        ctx.strokeText(percentText, bubble.x, bubble.y);
+        ctx.fillText(percentText, bubble.x, bubble.y);
+        
+        // Draw value below - use JetBrains Mono like input tab
+        // Smaller text size for readability
+        const valueFontSize = Math.max(10, Math.min(16, bubble.radius * 0.10));
+        ctx.font = `700 ${valueFontSize}px 'JetBrains Mono', monospace`;
+        ctx.lineWidth = 2;
+        const valueY = bubble.y + bubble.radius * 0.30;
+        ctx.strokeText(formatCurrency(bubble.value), bubble.x, valueY);
+        ctx.fillText(formatCurrency(bubble.value), bubble.x, valueY);
+    });
+}
+
+function setupBubbleChartControls(canvas, ctx, assetClasses, maxValue, startYear) {
+    const playPauseBtn = document.getElementById('bubble-play-pause');
+    const resetBtn = document.getElementById('bubble-reset');
+    const yearSlider = document.getElementById('bubble-year-slider');
+    const yearDisplay = document.getElementById('bubble-year-display');
+    
+    if (!playPauseBtn || !resetBtn || !yearSlider || !yearDisplay) return;
+    
+    // Update slider - min is startYear (2001), max is end year
+    yearSlider.min = 0;
+    yearSlider.max = bubbleChartState.simulationData.length - 1;
+    yearSlider.value = 0;
+    
+    // Play/Pause button
+    playPauseBtn.addEventListener('click', () => {
+        bubbleChartState.isPlaying = !bubbleChartState.isPlaying;
+        playPauseBtn.textContent = bubbleChartState.isPlaying ? '⏸ Pause' : '▶ Play';
+        
+        if (bubbleChartState.isPlaying) {
+            animateBubbleChart(canvas, ctx, assetClasses, maxValue);
+        } else {
+            if (bubbleChartState.animationTimeoutId) {
+                clearTimeout(bubbleChartState.animationTimeoutId);
+                bubbleChartState.animationTimeoutId = null;
+            }
+            if (bubbleChartState.animationId) {
+                cancelAnimationFrame(bubbleChartState.animationId);
+                bubbleChartState.animationId = null;
+            }
+        }
+    });
+    
+    // Reset button
+    resetBtn.addEventListener('click', () => {
+        bubbleChartState.isPlaying = false;
+        bubbleChartState.currentYear = 0;
+        playPauseBtn.textContent = '▶ Play';
+        yearSlider.value = 0;
+        const currentYearData = bubbleChartState.simulationData[0];
+        yearDisplay.textContent = currentYearData ? currentYearData.year.toString() : startYear.toString();
+        
+        if (bubbleChartState.animationTimeoutId) {
+            clearTimeout(bubbleChartState.animationTimeoutId);
+            bubbleChartState.animationTimeoutId = null;
+        }
+        if (bubbleChartState.animationId) {
+            cancelAnimationFrame(bubbleChartState.animationId);
+            bubbleChartState.animationId = null;
+        }
+        
+        drawBubbleChart(canvas, ctx, bubbleChartState.simulationData[0], assetClasses, maxValue);
+    });
+    
+    // Year slider
+    yearSlider.addEventListener('input', (e) => {
+        const index = parseInt(e.target.value);
+        bubbleChartState.currentYear = index;
+        const currentYearData = bubbleChartState.simulationData[index];
+        yearDisplay.textContent = currentYearData ? currentYearData.year.toString() : (startYear + index).toString();
+        
+        if (bubbleChartState.simulationData && bubbleChartState.simulationData[index]) {
+            drawBubbleChart(canvas, ctx, bubbleChartState.simulationData[index], assetClasses, maxValue);
+        }
+    });
+    
+    // Update display - show actual year (2001, 2002, etc.)
+    const currentYearData = bubbleChartState.simulationData[bubbleChartState.currentYear];
+    yearDisplay.textContent = currentYearData ? currentYearData.year.toString() : startYear.toString();
+    
+    bubbleChartState.controlsInitialized = true;
+}
+
+function animateBubbleChart(canvas, ctx, assetClasses, maxValue) {
+    if (!bubbleChartState.isPlaying) return;
+    
+    // Clear any existing timeout
+    if (bubbleChartState.animationTimeoutId) {
+        clearTimeout(bubbleChartState.animationTimeoutId);
+        bubbleChartState.animationTimeoutId = null;
+    }
+    
+    // Move to next year (year by year, not month by month)
+    const nextYearIndex = bubbleChartState.currentYear + 1;
+    
+    if (nextYearIndex < bubbleChartState.simulationData.length) {
+        bubbleChartState.currentYear = nextYearIndex;
+        const yearData = bubbleChartState.simulationData[nextYearIndex];
+        
+        // Update slider and display
+        const slider = document.getElementById('bubble-year-slider');
+        const display = document.getElementById('bubble-year-display');
+        if (slider) slider.value = nextYearIndex;
+        if (display && yearData) display.textContent = yearData.year.toString();
+        
+        // Draw the year
+        drawBubbleChart(canvas, ctx, yearData, assetClasses, maxValue);
+        
+        // Continue to next year after 1 second - save timeout ID so it can be cancelled
+        bubbleChartState.animationTimeoutId = setTimeout(() => {
+            bubbleChartState.animationTimeoutId = null;
+            animateBubbleChart(canvas, ctx, assetClasses, maxValue);
+        }, bubbleChartState.animationSpeed);
+    } else {
+        // Animation complete - loop back to start
+        bubbleChartState.currentYear = 0;
+        const yearData = bubbleChartState.simulationData[0];
+        
+        // Update slider and display
+        const slider = document.getElementById('bubble-year-slider');
+        const display = document.getElementById('bubble-year-display');
+        if (slider) slider.value = 0;
+        if (display && yearData) display.textContent = yearData.year.toString();
+        
+        // Draw the first year
+        drawBubbleChart(canvas, ctx, yearData, assetClasses, maxValue);
+        
+        // Continue animation (loop)
+        bubbleChartState.animationTimeoutId = setTimeout(() => {
+            bubbleChartState.animationTimeoutId = null;
+            animateBubbleChart(canvas, ctx, assetClasses, maxValue);
+        }, bubbleChartState.animationSpeed);
+    }
 }
 
 function createComparisonChart() {
@@ -2689,9 +3309,24 @@ function updateHighWaterMarkTable(portfolioValues) {
     `).join('');
 }
 
-function createNurseChart() {
-    const ctx = document.getElementById('nurse-chart').getContext('2d');
+function createNurseChart(tabNumber = 1) {
+    const canvasId = `nurse-chart-${tabNumber}`;
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) {
+        console.warn(`Nurse chart canvas ${canvasId} not found`);
+        return;
+    }
+    
+    const ctx = canvas.getContext('2d');
     const filteredData = getFilteredData();
+    const isGoldTab = tabNumber === 2;
+    const isKPITab = tabNumber === 3;
+    
+    // For tab 3 (KPI- kjøpekraft), create stacked bar chart
+    if (isKPITab) {
+        createKPIStackedBarChart(ctx, tabNumber);
+        return;
+    }
     
     // Calculate portfolio value for the filtered period, but normalize so it always starts at 10 MNOK
     const newValues = calculatePortfolioValue(filteredData, state.newPortfolio, state.startCapital);
@@ -2704,32 +3339,63 @@ function createNurseChart() {
         });
     }
     
-    // Calculate nurse index (portfolio value / nurse salary at each point in time)
-    // This shows how many annual nurse salaries the portfolio is worth at each time
-    // Filter to only include January 1st of each year for smoother line
-    const nurseIndexYearly = newValues
-        .filter(v => {
-            const date = v.date;
-            return date.getMonth() === 0 && date.getDate() === 1; // January 1st
-        })
-        .map(v => {
-            const index = v.nurseSalary > 0 ? v.value / v.nurseSalary : 0;
-            return {
-                date: v.date,
-                value: v.value,
-                nurseSalary: v.nurseSalary,
-                index: index
-            };
-        });
+    // Calculate index (portfolio value / reference value at each point in time)
+    // For tab 1: nurse index (portfolio value / nurse salary)
+    // For tab 2: gold index (portfolio value / gold price in NOK per unse)
+    // Calculate for all data points for tooltip, but filter display to January 1st for smoother line
+    const lastValue = newValues[newValues.length - 1];
+    const indexAll = newValues.map(v => {
+        let index = 0;
+        let referenceValue = 0;
+        
+        if (isGoldTab) {
+            // For gold: portfolio value (NOK) / gold price (NOK per unse) = unser gull
+            // For last data point (01.12.2025), use hardcoded gold price 4336
+            if (v === lastValue) {
+                referenceValue = 4336; // Hardcoded end value for 01.12.2025
+            } else {
+                referenceValue = v.goldPrice || 0;
+            }
+            index = referenceValue > 0 ? v.value / referenceValue : 0;
+        } else {
+            // For nurse: portfolio value / nurse salary = årslønner
+            referenceValue = v.nurseSalary || 0;
+            index = referenceValue > 0 ? v.value / referenceValue : 0;
+        }
+        
+        return {
+            date: v.date,
+            value: v.value,
+            referenceValue: referenceValue,
+            nurseSalary: v.nurseSalary,
+            goldPrice: isGoldTab && v === lastValue ? 4336 : v.goldPrice,
+            index: index
+        };
+    });
+    
+    // Filter to only include January 1st of each year for display (smoother line), plus last data point
+    const indexYearly = indexAll.filter(v => {
+        const date = v.date;
+        const isJan1 = date.getMonth() === 0 && date.getDate() === 1;
+        const isLastPoint = v === indexAll[indexAll.length - 1];
+        return isJan1 || isLastPoint;
+    });
     
     // Portfolio values for all data points (for the blue line)
     const portfolioData = newValues.map(v => ({ x: v.date, y: v.value }));
     
-    if (state.charts.nurse) {
-        state.charts.nurse.destroy();
+    // Destroy existing chart for this tab
+    const chartKey = tabNumber === 1 ? 'nurse1' : (tabNumber === 2 ? 'nurse2' : 'nurse3');
+    if (state.charts[chartKey]) {
+        state.charts[chartKey].destroy();
     }
     
-    state.charts.nurse = new Chart(ctx, {
+    const indexLabel = isGoldTab ? 'Gullprisindeks (unser)' : 'Sykepleierindeks (årslønner)';
+    const yAxisLabel = isGoldTab ? 'unser' : 'årslønner';
+    const tooltipUnit = isGoldTab ? 'unser' : 'årslønner';
+    const tooltipReferenceLabel = isGoldTab ? 'Gullpris' : 'Lønn';
+    
+    state.charts[chartKey] = new Chart(ctx, {
         type: 'line',
         data: {
             datasets: [
@@ -2744,10 +3410,10 @@ function createNurseChart() {
                     yAxisID: 'y'
                 },
                 {
-                    label: 'Sykepleierindeks (årslønner)',
-                    data: nurseIndexYearly.map(n => ({ x: n.date, y: n.index })),
-                    borderColor: chartColors.nurse,
-                    backgroundColor: 'oklch(0.55 0.18 145 / 0.2)',
+                    label: indexLabel,
+                    data: indexAll.map(n => ({ x: n.date, y: n.index })),
+                    borderColor: isGoldTab ? chartColors.gold : chartColors.nurse,
+                    backgroundColor: isGoldTab ? 'oklch(0.65 0.15 75 / 0.2)' : 'oklch(0.55 0.18 145 / 0.2)',
                     borderWidth: 3.5,
                     fill: true,
                     tension: 0.3,
@@ -2791,8 +3457,9 @@ function createNurseChart() {
                             family: "'JetBrains Mono', monospace",
                             size: 11
                         },
+                        color: isGoldTab ? chartColors.gold : chartColors.nurse,
                         callback: function(value) {
-                            return value.toFixed(0) + ' årslønner';
+                            return value.toFixed(0) + ' ' + yAxisLabel;
                         }
                     }
                 }
@@ -2806,15 +3473,23 @@ function createNurseChart() {
                             if (context.datasetIndex === 0) {
                                 return 'Portefølje: ' + formatCurrency(context.parsed.y);
                             } else {
-                                const point = nurseIndexYearly[context.dataIndex];
-                                if (point) {
-                                    return [
-                                        'Indeks: ' + context.parsed.y.toFixed(1) + ' årslønner',
-                                        'Portefølje: ' + formatCurrency(point.value),
-                                        'Lønn: ' + formatCurrency(point.nurseSalary)
-                                    ];
+                                // For index dataset
+                                if (context.parsed && !isNaN(context.parsed.y)) {
+                                    const point = indexAll[context.dataIndex];
+                                    if (point) {
+                                        // Format gold price as USD, nurse salary as NOK
+                                        const referenceLabel = isGoldTab 
+                                            ? point.goldPrice.toFixed(0) + ' USD'
+                                            : formatCurrency(point.referenceValue);
+                                        return [
+                                            'Indeks: ' + context.parsed.y.toFixed(1) + ' ' + tooltipUnit,
+                                            'Portefølje: ' + formatCurrency(point.value),
+                                            tooltipReferenceLabel + ': ' + referenceLabel
+                                        ];
+                                    }
+                                    return 'Indeks: ' + context.parsed.y.toFixed(1) + ' ' + tooltipUnit;
                                 }
-                                return 'Indeks: ' + context.parsed.y.toFixed(1) + ' årslønner';
+                                return null;
                             }
                         }
                     }
@@ -2823,29 +3498,56 @@ function createNurseChart() {
         }
     });
     
-    // Update nurse info cards
+    // Update info cards
     if (newValues.length === 0 || filteredData.length === 0) return;
     
-    // Get start salary - try multiple sources
     const startData = filteredData[0];
-    let startSalary = 0;
+    let startReferenceValue = 0;
     
-    // Try filteredData first
-    if (startData && startData.nurseSalary) {
-        startSalary = parseFloat(startData.nurseSalary);
-    }
-    // Try newValues as fallback
-    else if (newValues[0] && newValues[0].nurseSalary) {
-        startSalary = parseFloat(newValues[0].nurseSalary);
-    }
-    // Try state.data as last resort (find matching date)
-    else if (state.data && state.data.length > 0) {
-        const matchingData = state.data.find(d => d.date && d.date.getTime() === startData.date.getTime());
-        if (matchingData && matchingData.nurseSalary) {
-            startSalary = parseFloat(matchingData.nurseSalary);
+    // Get start reference value (salary for tab 1, gold price for tab 2)
+    if (isGoldTab) {
+        // Try filteredData first
+        if (startData && startData.goldPrice) {
+            startReferenceValue = parseFloat(startData.goldPrice);
+        }
+        // Try newValues as fallback
+        else if (newValues[0] && newValues[0].goldPrice) {
+            startReferenceValue = parseFloat(newValues[0].goldPrice);
+        }
+        // Try state.data as last resort
+        else if (state.data && state.data.length > 0) {
+            const matchingData = state.data.find(d => d.date && d.date.getTime() === startData.date.getTime());
+            if (matchingData && matchingData.goldPrice) {
+                startReferenceValue = parseFloat(matchingData.goldPrice);
+            }
+        }
+    } else {
+        // Try filteredData first
+        if (startData && startData.nurseSalary) {
+            startReferenceValue = parseFloat(startData.nurseSalary);
+        }
+        // Try newValues as fallback
+        else if (newValues[0] && newValues[0].nurseSalary) {
+            startReferenceValue = parseFloat(newValues[0].nurseSalary);
+        }
+        // Try state.data as last resort
+        else if (state.data && state.data.length > 0) {
+            const matchingData = state.data.find(d => d.date && d.date.getTime() === startData.date.getTime());
+            if (matchingData && matchingData.nurseSalary) {
+                startReferenceValue = parseFloat(matchingData.nurseSalary);
+            }
         }
     }
-    const endSalary = 700000; // Hardcoded current salary
+    
+    // Get end reference value
+    let endReferenceValue = 0;
+    if (isGoldTab) {
+        // For gold, use hardcoded end value (01.12.2025)
+        endReferenceValue = 4336; // 4336 USD
+    } else {
+        endReferenceValue = 700000; // Hardcoded current salary
+    }
+    
     const startYear = startData && startData.date ? startData.date.getFullYear() : new Date().getFullYear();
     
     // Calculate number of years in the period
@@ -2854,10 +3556,70 @@ function createNurseChart() {
     const yearsDiff = (endDate - startDate) / (1000 * 60 * 60 * 24 * 365.25);
     const numYears = Math.max(1, yearsDiff); // At least 1 year
     
-    // Calculate annual growth rate (CAGR) for salary
+    // Calculate annual growth rate (CAGR) for reference value
     let annualGrowth = 0;
-    if (startSalary > 0 && endSalary > 0 && numYears > 0) {
-        annualGrowth = ((Math.pow(endSalary / startSalary, 1 / numYears) - 1) * 100);
+    if (startReferenceValue > 0 && endReferenceValue > 0 && numYears > 0) {
+        annualGrowth = ((Math.pow(endReferenceValue / startReferenceValue, 1 / numYears) - 1) * 100);
+    }
+    
+    // Update labels based on active tab
+    if (isKPITab) {
+        // Labels for KPI tab are updated in updateKPIInfoCards
+        // Skip label updates here
+    } else if (isGoldTab) {
+        // Update labels for gold tab
+        const firstLabelEl = document.getElementById('nurse-index-first-label');
+        if (firstLabelEl) firstLabelEl.textContent = 'Antall unser gull første år';
+        
+        const tenYearsLabelEl = document.getElementById('nurse-index-10-years-label');
+        if (tenYearsLabelEl) tenYearsLabelEl.textContent = 'Antall unser gull 10 år før siste dato';
+        
+        const lastLabelEl = document.getElementById('nurse-index-last-label');
+        if (lastLabelEl) lastLabelEl.textContent = 'Antall unser gull siste år';
+        
+        // Update sublabels
+        const firstSublabelEl = document.getElementById('nurse-index-first-sublabel');
+        if (firstSublabelEl) firstSublabelEl.textContent = 'unser';
+        
+        const tenYearsSublabelEl = document.getElementById('nurse-index-10-years-sublabel');
+        if (tenYearsSublabelEl) tenYearsSublabelEl.textContent = 'unser';
+        
+        const lastSublabelEl = document.getElementById('nurse-index-last-sublabel');
+        if (lastSublabelEl) lastSublabelEl.textContent = 'unser';
+        
+        // Update start/end value sublabels (assuming gold price is in USD)
+        const startSublabelEl = document.getElementById('nurse-start-sublabel');
+        if (startSublabelEl) startSublabelEl.textContent = 'USD';
+        
+        const endSublabelEl = document.getElementById('nurse-end-sublabel');
+        if (endSublabelEl) endSublabelEl.textContent = 'USD';
+    } else {
+        // Update labels for nurse tab
+        const firstLabelEl = document.getElementById('nurse-index-first-label');
+        if (firstLabelEl) firstLabelEl.textContent = 'Antall sykepleier årslønner første år';
+        
+        const tenYearsLabelEl = document.getElementById('nurse-index-10-years-label');
+        if (tenYearsLabelEl) tenYearsLabelEl.textContent = 'Antall sykepleier årslønner 10 år før siste dato';
+        
+        const lastLabelEl = document.getElementById('nurse-index-last-label');
+        if (lastLabelEl) lastLabelEl.textContent = 'Antall sykepleier årslønner siste år';
+        
+        // Update sublabels
+        const firstSublabelEl = document.getElementById('nurse-index-first-sublabel');
+        if (firstSublabelEl) firstSublabelEl.textContent = 'årslønner';
+        
+        const tenYearsSublabelEl = document.getElementById('nurse-index-10-years-sublabel');
+        if (tenYearsSublabelEl) tenYearsSublabelEl.textContent = 'årslønner';
+        
+        const lastSublabelEl = document.getElementById('nurse-index-last-sublabel');
+        if (lastSublabelEl) lastSublabelEl.textContent = 'årslønner';
+        
+        // Update start/end value sublabels
+        const startSublabelEl = document.getElementById('nurse-start-sublabel');
+        if (startSublabelEl) startSublabelEl.textContent = 'kr';
+        
+        const endSublabelEl = document.getElementById('nurse-end-sublabel');
+        if (endSublabelEl) endSublabelEl.textContent = 'kr';
     }
     
     // Update start value label
@@ -2866,20 +3628,24 @@ function createNurseChart() {
         startLabelEl.textContent = `Startverdi (${startYear})`;
     }
     
-    // Update start value (show salary in kr)
+    // Update start value
     const nurseStartEl = document.getElementById('nurse-start');
     if (nurseStartEl) {
-        if (startSalary > 0) {
-            nurseStartEl.textContent = startSalary.toLocaleString('no-NO', { maximumFractionDigits: 0 });
+        if (startReferenceValue > 0) {
+            nurseStartEl.textContent = startReferenceValue.toLocaleString('no-NO', { maximumFractionDigits: 0 });
         } else {
             nurseStartEl.textContent = '-';
         }
     }
     
-    // End value is already hardcoded in HTML as 700 000, but let's make sure it's correct
+    // Update end value
     const nurseEndEl = document.getElementById('nurse-end');
     if (nurseEndEl) {
-        nurseEndEl.textContent = '700 000';
+        if (endReferenceValue > 0) {
+            nurseEndEl.textContent = endReferenceValue.toLocaleString('no-NO', { maximumFractionDigits: 0 });
+        } else {
+            nurseEndEl.textContent = '-';
+        }
     }
     
     // Update annual growth
@@ -2892,20 +3658,20 @@ function createNurseChart() {
         }
     }
     
-    // Calculate and update nurse index values (from yearly data - January 1st of each year)
-    // First year: antall årslønner første år
-    if (nurseIndexYearly.length > 0) {
-        const firstYearIndex = nurseIndexYearly[0].index;
+    // Calculate and update index values (from yearly data - January 1st of each year)
+    // First year
+    if (indexYearly.length > 0) {
+        const firstYearIndex = indexYearly[0].index;
         const firstYearEl = document.getElementById('nurse-index-first');
         if (firstYearEl) {
             firstYearEl.textContent = firstYearIndex.toFixed(1);
         }
     }
     
-    // Last year: antall årslønner siste år
-    if (nurseIndexYearly.length > 0) {
-        const firstYearIndex = nurseIndexYearly[0].index;
-        const lastYearIndex = nurseIndexYearly[nurseIndexYearly.length - 1].index;
+    // Last year
+    if (indexYearly.length > 0) {
+        const firstYearIndex = indexYearly[0].index;
+        const lastYearIndex = indexYearly[indexYearly.length - 1].index;
         const lastYearEl = document.getElementById('nurse-index-last');
         if (lastYearEl) {
             lastYearEl.textContent = lastYearIndex.toFixed(1);
@@ -2914,7 +3680,7 @@ function createNurseChart() {
         // Calculate growth percentage and annual growth (CAGR)
         if (firstYearIndex > 0 && lastYearIndex > 0) {
             const totalGrowth = ((lastYearIndex / firstYearIndex) - 1) * 100;
-            const numYears = nurseIndexYearly.length - 1; // Number of years between first and last
+            const numYears = indexYearly.length - 1; // Number of years between first and last
             const annualGrowth = numYears > 0 
                 ? ((Math.pow(lastYearIndex / firstYearIndex, 1 / numYears) - 1) * 100)
                 : 0;
@@ -2938,20 +3704,284 @@ function createNurseChart() {
         }
     }
     
-    // 10 years before last: antall årslønner 10 år før siste dato
-    if (nurseIndexYearly.length > 10) {
-        const index10YearsAgo = nurseIndexYearly[nurseIndexYearly.length - 11].index;
+    // 10 years before last
+    if (indexYearly.length > 10) {
+        const index10YearsAgo = indexYearly[indexYearly.length - 11].index;
         const tenYearsAgoEl = document.getElementById('nurse-index-10-years-ago');
         if (tenYearsAgoEl) {
             tenYearsAgoEl.textContent = index10YearsAgo.toFixed(1);
         }
-    } else if (nurseIndexYearly.length > 0) {
+    } else if (indexYearly.length > 0) {
         // If less than 10 years of data, show the first year instead
-        const firstYearIndex = nurseIndexYearly[0].index;
+        const firstYearIndex = indexYearly[0].index;
         const tenYearsAgoEl = document.getElementById('nurse-index-10-years-ago');
         if (tenYearsAgoEl) {
             tenYearsAgoEl.textContent = firstYearIndex.toFixed(1);
         }
+    }
+}
+
+function createKPIStackedBarChart(ctx, tabNumber) {
+    const chartKey = 'nurse3';
+    if (state.charts[chartKey]) {
+        state.charts[chartKey].destroy();
+    }
+    
+    // Get all years from 2001 to 2025
+    const years = [];
+    for (let year = 2001; year <= 2025; year++) {
+        years.push(year);
+    }
+    
+    // Calculate yearly KPI from CSV data (average of monthly values)
+    const filteredData = getFilteredData();
+    const byYear = {};
+    filteredData.forEach(row => {
+        const year = row.date.getFullYear();
+        if (year >= 2001 && year <= 2025) {
+            if (!byYear[year]) {
+                byYear[year] = [];
+            }
+            if (row.kpi !== undefined && row.kpi !== null) {
+                byYear[year].push(row.kpi);
+            }
+        }
+    });
+    
+    // Calculate average KPI per year
+    const yearlyKPIs = {};
+    Object.keys(byYear).forEach(year => {
+        const kpiValues = byYear[year];
+        if (kpiValues.length > 0) {
+            const sum = kpiValues.reduce((a, b) => a + b, 0);
+            yearlyKPIs[year] = sum / kpiValues.length;
+        } else {
+            yearlyKPIs[year] = 0;
+        }
+    });
+    
+    // Calculate cumulative KPI index (starting at 100) - only for start/end values
+    let kpiIndex = 100;
+    
+    // Calculate portfolio purchasing power index (starting at 100) - only for start/end values
+    // This represents real purchasing power adjusted for KPI/inflation
+    let portfolioIndex = 100;
+    
+    // Store yearly data and calculate values for chart
+    const yearlyData = [];
+    const kpiPercentValues = []; // KPI in percent for each year (for chart)
+    const excessReturnValues = []; // Excess return in percent for each year (for chart)
+    
+    // Calculate indices for each year
+    years.forEach(year => {
+        const kpi = yearlyKPIs[year] || 0;
+        
+        // Update KPI index: multiply by (1 + kpi/100) - for cumulative calculation
+        kpiIndex = kpiIndex * (1 + kpi / 100);
+        
+        // Calculate portfolio return for this year
+        const portfolioMetrics = calculateYearlyPortfolioMetrics(year, state.newPortfolio);
+        const portfolioReturn = portfolioMetrics.return !== null ? portfolioMetrics.return : 0;
+        
+        // Calculate excess return (portfolio return - KPI) in percent
+        const excessReturn = portfolioReturn - kpi;
+        
+        // Update portfolio index: multiply by (1 + portfolioReturn/100) - same calculation method as KPI index
+        // Start at 100, multiply by (1 + portfolioReturn / 100) each year
+        portfolioIndex = portfolioIndex * (1 + portfolioReturn / 100);
+        
+        // For chart: use KPI and excess return as percentages (not indexed)
+        kpiPercentValues.push(kpi);
+        excessReturnValues.push(excessReturn);
+        
+        // Store yearly data
+        yearlyData.push({
+            year: year,
+            kpi: kpi,
+            portfolioReturn: portfolioReturn,
+            excessReturn: excessReturn,
+            kpiIndex: kpiIndex,
+            portfolioIndex: portfolioIndex
+        });
+    });
+    
+    state.charts[chartKey] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: years,
+            datasets: [
+                {
+                    label: 'KPI',
+                    data: kpiPercentValues,
+                    backgroundColor: 'oklch(0.70 0.20 85)', // Warmer, richer gold
+                    borderColor: 'oklch(0.65 0.18 80)',
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                    borderSkipped: false
+                },
+                {
+                    label: 'Avkastning utover KPI',
+                    data: excessReturnValues,
+                    backgroundColor: 'oklch(0.55 0.20 260)', // Deeper, more vibrant blue
+                    borderColor: 'oklch(0.50 0.18 255)',
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                    borderSkipped: false
+                }
+            ]
+        },
+        options: {
+            ...commonChartOptions,
+            indexAxis: 'x',
+            scales: {
+                x: {
+                    stacked: true,
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: {
+                            family: "'DM Sans', sans-serif",
+                            size: 11
+                        },
+                        maxRotation: 45,
+                        minRotation: 45
+                    },
+                    barPercentage: 0.75,
+                    categoryPercentage: 0.85
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        font: {
+                            family: "'JetBrains Mono', monospace",
+                            size: 11
+                        },
+                        callback: function(value) {
+                            return value.toFixed(0) + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                ...commonChartOptions.plugins,
+                tooltip: {
+                    ...commonChartOptions.plugins.tooltip,
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.dataset.label || '';
+                            const value = context.parsed.y;
+                            return label + ': ' + value.toFixed(1) + '%';
+                        },
+                        footer: function(tooltipItems) {
+                            if (tooltipItems.length === 2) {
+                                const kpiValue = tooltipItems[0].parsed.y;
+                                const excessValue = tooltipItems[1].parsed.y;
+                                const total = kpiValue + excessValue;
+                                return 'Total avkastning: ' + total.toFixed(1) + '%';
+                            }
+                            return '';
+                        }
+                    }
+                },
+                legend: {
+                    ...commonChartOptions.plugins.legend,
+                    display: true
+                }
+            }
+        }
+    });
+    
+    // Update info cards for KPI tab
+    updateKPIInfoCards(yearlyData);
+}
+
+function updateKPIInfoCards(yearlyData) {
+    // Card 1: Antall år med avkastning utover KPI
+    const yearsWithExcessReturn = yearlyData.filter(d => d.excessReturn > 0).length;
+    const firstCardEl = document.getElementById('nurse-index-first');
+    const firstLabelEl = document.getElementById('nurse-index-first-label');
+    const firstSublabelEl = document.getElementById('nurse-index-first-sublabel');
+    if (firstCardEl) firstCardEl.textContent = yearsWithExcessReturn;
+    if (firstLabelEl) firstLabelEl.textContent = 'Antall år med avkastning utover KPI';
+    if (firstSublabelEl) firstSublabelEl.textContent = 'år';
+    
+    // Card 2: Året med høyest avkastning utover KPI
+    let maxExcessReturn = -Infinity;
+    let maxExcessReturnYear = null;
+    yearlyData.forEach(d => {
+        if (d.excessReturn > maxExcessReturn) {
+            maxExcessReturn = d.excessReturn;
+            maxExcessReturnYear = d.year;
+        }
+    });
+    const secondCardEl = document.getElementById('nurse-index-10-years-ago');
+    const secondLabelEl = document.getElementById('nurse-index-10-years-label');
+    const secondSublabelEl = document.getElementById('nurse-index-10-years-sublabel');
+    if (secondCardEl) secondCardEl.textContent = maxExcessReturnYear || '-';
+    if (secondLabelEl) secondLabelEl.textContent = 'Året med høyest avkastning utover KPI';
+    if (secondSublabelEl) secondSublabelEl.textContent = '';
+    
+    // Card 3: Total vekst i porteføljen og annualisert avkastning utover KPI
+    const startKpiIndex = 100;
+    const endKpiIndex = yearlyData.length > 0 ? yearlyData[yearlyData.length - 1].kpiIndex : 100;
+    const totalKpiGrowth = ((endKpiIndex / startKpiIndex) - 1) * 100;
+    
+    const startPortfolioIndex = 100;
+    const endPortfolioIndex = yearlyData.length > 0 ? yearlyData[yearlyData.length - 1].portfolioIndex : 100;
+    const totalPortfolioGrowth = ((endPortfolioIndex / startPortfolioIndex) - 1) * 100;
+    
+    const totalExcessGrowth = totalPortfolioGrowth - totalKpiGrowth;
+    const numYears = yearlyData.length;
+    const annualizedExcessReturn = numYears > 0 
+        ? ((Math.pow(endPortfolioIndex / endKpiIndex, 1 / numYears) - 1) * 100)
+        : 0;
+    
+    const thirdCardEl = document.getElementById('nurse-index-last');
+    const thirdLabelEl = document.getElementById('nurse-index-last-label');
+    const thirdSublabelEl = document.getElementById('nurse-index-last-sublabel');
+    const growthContainer = document.getElementById('nurse-index-growth');
+    const growthTotalEl = document.getElementById('nurse-growth-total');
+    const growthAnnualEl = document.getElementById('nurse-growth-annual');
+    
+    // Show KPI index end value (182.5) - this is 100 adjusted for KPI in all 25 years
+    if (thirdCardEl) thirdCardEl.textContent = endKpiIndex.toFixed(1);
+    if (thirdLabelEl) thirdLabelEl.textContent = 'Sluttverdi (indeksert)';
+    if (thirdSublabelEl) thirdSublabelEl.textContent = '';
+    
+    if (growthContainer && growthTotalEl && growthAnnualEl) {
+        growthTotalEl.textContent = `Vekst utover KPI: ${totalExcessGrowth >= 0 ? '+' : ''}${totalExcessGrowth.toFixed(1)}%`;
+        growthAnnualEl.textContent = `Annualisert utover KPI: ${annualizedExcessReturn >= 0 ? '+' : ''}${annualizedExcessReturn.toFixed(2)}% per år`;
+        growthContainer.style.display = 'flex';
+    }
+    
+    // Update start value card to show indexed start value (100)
+    const startValueEl = document.getElementById('nurse-start');
+    const startLabelEl = document.getElementById('nurse-start-label');
+    const startSublabelEl = document.getElementById('nurse-start-sublabel');
+    if (startValueEl) startValueEl.textContent = '100';
+    if (startLabelEl) startLabelEl.textContent = 'Startverdi (indeksert)';
+    if (startSublabelEl) startSublabelEl.textContent = '';
+    
+    // Update end value card to show KPI index end value (182.5) - 100 adjusted for KPI in all years
+    const endValueEl = document.getElementById('nurse-end');
+    const endLabelEl = document.getElementById('nurse-end-label');
+    const endSublabelEl = document.getElementById('nurse-end-sublabel');
+    if (endValueEl) endValueEl.textContent = endKpiIndex.toFixed(1);
+    if (endLabelEl) endLabelEl.textContent = 'Sluttverdi (indeksert)';
+    if (endSublabelEl) endSublabelEl.textContent = '';
+    
+    // Update growth card - show KPI growth
+    const growthEl = document.getElementById('nurse-growth');
+    if (growthEl) {
+        const annualGrowth = numYears > 0 
+            ? ((Math.pow(endKpiIndex / startKpiIndex, 1 / numYears) - 1) * 100)
+            : 0;
+        growthEl.textContent = annualGrowth.toFixed(2) + '%';
     }
 }
 
@@ -3102,7 +4132,7 @@ function setupTabNavigation() {
                     createDrawdownCharts();
                     break;
                 case 'nurse':
-                    createNurseChart();
+                    createNurseChart(state.activeNurseTab);
                     break;
                 case 'assets':
                     createAssetsGrid();
@@ -3190,6 +4220,17 @@ function setupEventListeners() {
     // Resize handler for treemap charts and assets grid
     let resizeTimeout;
     window.addEventListener('resize', () => {
+        // Update bubble chart if active
+        const bubbleBtn = document.getElementById('bubble-chart-btn');
+        if (bubbleBtn && bubbleBtn.classList.contains('active')) {
+            const bubbleCanvas = document.getElementById('bubble-chart');
+            if (bubbleCanvas && bubbleCanvas.style.display !== 'none') {
+                setTimeout(() => {
+                    createBubbleChart();
+                }, 100);
+            }
+        }
+        
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(() => {
             updateTreemapChart('current');
@@ -3303,6 +4344,34 @@ function setupEventListeners() {
         });
     });
     
+    // Nurse tab selector buttons
+    const nurseTabButtons = document.querySelectorAll('.nurse-tab-selector .selector-btn');
+    nurseTabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Remove active class from all buttons
+            nurseTabButtons.forEach(b => b.classList.remove('active'));
+            // Add active class to clicked button
+            btn.classList.add('active');
+            
+            // Get tab number from data attribute
+            const tabNumber = parseInt(btn.dataset.nurseTab) || 1;
+            state.activeNurseTab = tabNumber;
+            
+            // Show/hide appropriate canvas
+            const canvas1 = document.getElementById('nurse-chart-1');
+            const canvas2 = document.getElementById('nurse-chart-2');
+            const canvas3 = document.getElementById('nurse-chart-3');
+            if (canvas1 && canvas2 && canvas3) {
+                canvas1.style.display = tabNumber === 1 ? 'block' : 'none';
+                canvas2.style.display = tabNumber === 2 ? 'block' : 'none';
+                canvas3.style.display = tabNumber === 3 ? 'block' : 'none';
+            }
+            
+            // Create/update chart for selected tab
+            createNurseChart(tabNumber);
+        });
+    });
+    
     // Rebalancing selector buttons for allocation chart
     const rebalancingButtons = document.querySelectorAll('.rebalancing-selector .selector-btn');
     rebalancingButtons.forEach(btn => {
@@ -3312,20 +4381,63 @@ function setupEventListeners() {
             // Add active class to clicked button
             btn.classList.add('active');
             
+            // Check if bubble chart button was clicked
+            if (btn.dataset.view === 'bubble') {
+                // Show bubble chart, hide allocation chart
+                const allocationCanvas = document.getElementById('allocation-chart');
+                const bubbleCanvas = document.getElementById('bubble-chart');
+                const bubbleControls = document.getElementById('bubble-chart-controls');
+                
+                if (allocationCanvas) allocationCanvas.style.display = 'none';
+                if (bubbleCanvas) {
+                    bubbleCanvas.style.display = 'block';
+                    // Force a reflow to ensure canvas is visible
+                    bubbleCanvas.offsetHeight;
+                }
+                if (bubbleControls) bubbleControls.style.display = 'block';
+                
+                // Create bubble chart with delay to ensure canvas is visible
+                setTimeout(() => {
+                    createBubbleChart();
+                }, 200);
+                return;
+            }
+            
+            // Show allocation chart, hide bubble chart
+            const allocationCanvas = document.getElementById('allocation-chart');
+            const bubbleCanvas = document.getElementById('bubble-chart');
+            const bubbleControls = document.getElementById('bubble-chart-controls');
+            
+            if (allocationCanvas) allocationCanvas.style.display = 'block';
+            if (bubbleCanvas) bubbleCanvas.style.display = 'none';
+            if (bubbleControls) bubbleControls.style.display = 'none';
+            
             // Update state based on data attribute
             const shouldRebalance = btn.dataset.rebalancing === 'true';
             state.allocationRebalancing = shouldRebalance;
             
             console.log('Rebalancing changed to:', state.allocationRebalancing);
             
-            // Update chart
+            // Update chart - destroy completely
             if (state.charts.allocation) {
                 try {
                     state.charts.allocation.destroy();
-                } catch(e) {}
+                } catch(e) {
+                    console.warn('Error destroying chart:', e);
+                }
                 state.charts.allocation = null;
             }
-            createAllocationChart();
+            
+            // Clear canvas
+            if (allocationCanvas) {
+                const ctx = allocationCanvas.getContext('2d');
+                ctx.clearRect(0, 0, allocationCanvas.width, allocationCanvas.height);
+            }
+            
+            // Force a small delay to ensure chart is fully destroyed
+            setTimeout(() => {
+                createAllocationChart();
+            }, 10);
         });
     });
     
@@ -3373,7 +4485,13 @@ function updateCharts() {
             createOverviewChart();
             break;
         case 'allocation':
-            createAllocationChart();
+            // Check if bubble chart is active
+            const bubbleBtn = document.getElementById('bubble-chart-btn');
+            if (bubbleBtn && bubbleBtn.classList.contains('active')) {
+                createBubbleChart();
+            } else {
+                createAllocationChart();
+            }
             break;
         case 'comparison':
             createComparisonChart();
@@ -3383,7 +4501,7 @@ function updateCharts() {
             createDrawdownCharts();
             break;
         case 'nurse':
-            createNurseChart();
+            createNurseChart(state.activeNurseTab);
             break;
         case 'assets':
             createAssetsGrid();

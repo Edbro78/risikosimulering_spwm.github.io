@@ -82,7 +82,7 @@
                     <circle cx="9" cy="7" r="4"/>
                     <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
                 </svg>
-                <span>Sykepleierindeks</span>
+                <span>Kjøpekraft</span>
             </button>
             <button class="tab-btn" data-tab="assets">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -401,10 +401,20 @@
                     <div class="rebalancing-selector">
                         <button class="selector-btn active" data-rebalancing="false" id="rebalancing-btn-no">Uten rebalansering</button>
                         <button class="selector-btn" data-rebalancing="true" id="rebalancing-btn-yes">Med rebalansering</button>
+                        <button class="selector-btn" data-view="bubble" id="bubble-chart-btn">Boblediagram</button>
                     </div>
                 </div>
                 <div class="chart-wrapper" style="position: relative;">
                     <canvas id="allocation-chart"></canvas>
+                    <canvas id="bubble-chart" style="display: none;"></canvas>
+                    <div id="bubble-chart-controls" style="display: none; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10; background: var(--card); padding: 12px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <button id="bubble-play-pause" style="padding: 8px 16px; border: 1px solid var(--border); border-radius: 6px; background: var(--background); cursor: pointer;">▶ Play</button>
+                            <button id="bubble-reset" style="padding: 8px 16px; border: 1px solid var(--border); border-radius: 6px; background: var(--background); cursor: pointer;">Reset</button>
+                            <input type="range" id="bubble-year-slider" min="0" max="24" value="0" style="width: 200px;">
+                            <span id="bubble-year-display" style="min-width: 60px; text-align: center; font-family: 'JetBrains Mono', monospace;">År 0</span>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -582,8 +592,17 @@
 
             <!-- Tab 4: Nurse Index -->
             <section class="tab-content" id="tab-nurse">
+                <div class="nurse-tab-selector" style="margin-bottom: var(--space-sm);">
+                    <div class="rebalancing-selector">
+                        <button class="selector-btn active" data-nurse-tab="1" id="nurse-tab-1">sykepleierindeksen</button>
+                        <button class="selector-btn" data-nurse-tab="2" id="nurse-tab-2">Gullprisen</button>
+                        <button class="selector-btn" data-nurse-tab="3" id="nurse-tab-3">KPI- kjøpekraft</button>
+                    </div>
+                </div>
                 <div class="chart-wrapper large">
-                    <canvas id="nurse-chart"></canvas>
+                    <canvas id="nurse-chart-1"></canvas>
+                    <canvas id="nurse-chart-2" style="display: none;"></canvas>
+                    <canvas id="nurse-chart-3" style="display: none;"></canvas>
                 </div>
                 <div class="nurse-info">
                     <div class="info-card">
@@ -595,7 +614,7 @@
                         <div class="info-content">
                             <span class="info-label" id="nurse-start-label">Startverdi (1995)</span>
                             <span class="info-value" id="nurse-start">-</span>
-                            <span class="info-sublabel">kr</span>
+                            <span class="info-sublabel" id="nurse-start-sublabel">kr</span>
                         </div>
                     </div>
                     <div class="info-card highlight">
@@ -607,7 +626,7 @@
                         <div class="info-content">
                             <span class="info-label">Sluttverdi (i dag)</span>
                             <span class="info-value" id="nurse-end">700 000</span>
-                            <span class="info-sublabel">kr</span>
+                            <span class="info-sublabel" id="nurse-end-sublabel">kr</span>
                         </div>
                     </div>
                     <div class="info-card">
@@ -631,9 +650,9 @@
                             </svg>
                         </div>
                         <div class="info-content">
-                            <span class="info-label">Antall sykepleier årslønner første år</span>
+                            <span class="info-label" id="nurse-index-first-label">Antall sykepleier årslønner første år</span>
                             <span class="info-value" id="nurse-index-first">-</span>
-                            <span class="info-sublabel">årslønner</span>
+                            <span class="info-sublabel" id="nurse-index-first-sublabel">årslønner</span>
                         </div>
                     </div>
                     <div class="info-card">
@@ -643,9 +662,9 @@
                             </svg>
                         </div>
                         <div class="info-content">
-                            <span class="info-label">Antall sykepleier årslønner 10 år før siste dato</span>
+                            <span class="info-label" id="nurse-index-10-years-label">Antall sykepleier årslønner 10 år før siste dato</span>
                             <span class="info-value" id="nurse-index-10-years-ago">-</span>
-                            <span class="info-sublabel">årslønner</span>
+                            <span class="info-sublabel" id="nurse-index-10-years-sublabel">årslønner</span>
                         </div>
                     </div>
                     <div class="info-card">
@@ -655,11 +674,11 @@
                             </svg>
                         </div>
                         <div class="info-content">
-                            <span class="info-label">Antall sykepleier årslønner siste år</span>
+                            <span class="info-label" id="nurse-index-last-label">Antall sykepleier årslønner siste år</span>
                             <div class="info-value-row">
                                 <div class="info-value-group">
                                     <span class="info-value" id="nurse-index-last">-</span>
-                                    <span class="info-sublabel">årslønner</span>
+                                    <span class="info-sublabel" id="nurse-index-last-sublabel">årslønner</span>
                                 </div>
                                 <span class="info-growth" id="nurse-index-growth" style="display: none;">
                                     <span class="growth-total" id="nurse-growth-total"></span>
