@@ -1270,11 +1270,44 @@ function createOverviewChart() {
             ...commonChartOptions,
             plugins: {
                 ...commonChartOptions.plugins,
+                legend: {
+                    ...commonChartOptions.plugins.legend,
+                    labels: {
+                        ...commonChartOptions.plugins.legend.labels,
+                        generateLabels: function(chart) {
+                            const original = Chart.defaults.plugins.legend.labels.generateLabels;
+                            const labels = original.call(this, chart);
+                            labels.forEach(label => {
+                                // Set fillStyle to same color as strokeStyle for filled circles
+                                label.fillStyle = label.strokeStyle;
+                            });
+                            return labels;
+                        }
+                    }
+                },
                 tooltip: {
                     ...commonChartOptions.plugins.tooltip,
+                    backgroundColor: '#ffffff',
+                    titleColor: 'oklch(0.2722 0.1053 258.9631)',
+                    bodyColor: 'oklch(0.2722 0.1053 258.9631)',
+                    borderColor: 'oklch(0.9324 0.0080 253.8552)',
+                    borderWidth: 1,
                     callbacks: {
+                        title: function(context) {
+                            // Format date without time, just date
+                            const date = new Date(context[0].parsed.x);
+                            return date.toLocaleDateString('no-NO', { year: 'numeric', month: 'short', day: 'numeric' });
+                        },
                         label: function(context) {
                             return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                        },
+                        labelColor: function(context) {
+                            // Make filled circles in tooltip by setting backgroundColor to same as borderColor
+                            return {
+                                borderColor: context.dataset.borderColor,
+                                backgroundColor: context.dataset.borderColor,
+                                borderWidth: 0
+                            };
                         }
                     }
                 }
@@ -1452,11 +1485,44 @@ function createAssetClassesChart() {
             ...commonChartOptions,
             plugins: {
                 ...commonChartOptions.plugins,
+                legend: {
+                    ...commonChartOptions.plugins.legend,
+                    labels: {
+                        ...commonChartOptions.plugins.legend.labels,
+                        generateLabels: function(chart) {
+                            const original = Chart.defaults.plugins.legend.labels.generateLabels;
+                            const labels = original.call(this, chart);
+                            labels.forEach(label => {
+                                // Set fillStyle to same color as strokeStyle for filled circles
+                                label.fillStyle = label.strokeStyle;
+                            });
+                            return labels;
+                        }
+                    }
+                },
                 tooltip: {
                     ...commonChartOptions.plugins.tooltip,
+                    backgroundColor: '#ffffff',
+                    titleColor: 'oklch(0.2722 0.1053 258.9631)',
+                    bodyColor: 'oklch(0.2722 0.1053 258.9631)',
+                    borderColor: 'oklch(0.9324 0.0080 253.8552)',
+                    borderWidth: 1,
                     callbacks: {
+                        title: function(context) {
+                            // Format date without time, just date
+                            const date = new Date(context[0].parsed.x);
+                            return date.toLocaleDateString('no-NO', { year: 'numeric', month: 'short', day: 'numeric' });
+                        },
                         label: function(context) {
                             return context.dataset.label.split(' (')[0] + ': ' + formatCurrency(context.parsed.y);
+                        },
+                        labelColor: function(context) {
+                            // Make filled circles in tooltip by setting backgroundColor to same as borderColor
+                            return {
+                                borderColor: context.dataset.borderColor,
+                                backgroundColor: context.dataset.borderColor,
+                                borderWidth: 0
+                            };
                         }
                     }
                 }
@@ -2124,6 +2190,28 @@ function drawBubbleChart(canvas, ctx, yearData, assetClasses, maxValue) {
     const actualHeight = canvas.height / (window.devicePixelRatio || 1);
     ctx.clearRect(0, 0, actualWidth, actualHeight);
     
+    // Fill background with same color as chart-wrapper (--secondary)
+    const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--secondary').trim() || 'oklch(0.9510 0.0063 255.4756)';
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, actualWidth, actualHeight);
+    
+    // Draw grid lines similar to Chart.js (horizontal lines only, matching y-axis grid)
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.05)';
+    ctx.lineWidth = 1;
+    
+    // Draw horizontal grid lines (similar to Chart.js y-axis grid)
+    // Space them evenly - approximately every 50-80px for visual consistency
+    const gridLineSpacing = 60; // Approximate spacing
+    const startY = 60; // Start below title
+    const endY = actualHeight - 40; // Leave some space at bottom
+    
+    ctx.beginPath();
+    for (let y = startY; y <= endY; y += gridLineSpacing) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(actualWidth, y);
+    }
+    ctx.stroke();
+    
     const padding = 60;
     const chartWidth = actualWidth - 2 * padding;
     const chartHeight = actualHeight - 2 * padding;
@@ -2145,73 +2233,71 @@ function drawBubbleChart(canvas, ctx, yearData, assetClasses, maxValue) {
         console.log(`${index + 1}. ${asset.name} (${asset.key}): ${asset.value.toFixed(2)} MNOK (${asset.percentage.toFixed(1)}%)`);
     });
     
-    // Calculate bubble sizes based on VALUE (MNOK) - DRAMATICALLY amplify differences
-    // A bubble with 20 MNOK should be MUCH larger than one with 2 MNOK
-    // Use exponential scaling: 10% difference in value = 30% difference in size
-    // Formula: size = min + (normalizedValue^power) * (max - min)
-    // INCREASED sizes: min 60px, max calculated based on available space
-    // Lower power (0.3) = MORE dramatic size differences
-    const minRadius = 60;
+    // Calculate bubble sizes based on VALUE (MNOK)
+    // Requirements:
+    // - Minimum size corresponds to 3 MNOK
+    // - 10 MNOK should be ~25% larger than 9 MNOK (larger differences for larger values)
+    // - Use power scaling to amplify differences
+    const MINIMUM_BUBBLE_VALUE = 3000000; // 3 MNOK - minimum size
     
-    // Calculate max radius based on available canvas space
-    // Leave padding and ensure largest bubble fits
+    // Find max value
+    const maxAssetValue = Math.max(...sortedAssets.map(a => a.value));
+    
+    // Calculate max radius - use more of the available space
+    // Leave minimal space for controls at top
+    const availableHeight = actualHeight - 60; // Minimal space for title
     const maxBubbleDiameter = Math.min(
-        (actualWidth - 80) / 2,  // Max half width (leave 40px padding each side)
-        (actualHeight - 120) / 2  // Max half height (leave 60px top + 60px bottom for controls)
+        (actualWidth - 60) / 2,  // Use more width (only 30px padding each side)
+        availableHeight / 2      // Use more height
     );
+    const minRadius = 70; // Increased minimum radius for 3 MNOK
     const maxRadius = Math.max(minRadius, maxBubbleDiameter);
     
-    const power = 0.3; // Lower power = MORE amplification (10% value diff -> 40%+ size diff)
-    
-    // Find min and max values for normalization
-    const maxAssetValue = Math.max(...sortedAssets.map(a => a.value));
-    const minAssetValue = Math.min(...sortedAssets.map(a => a.value));
-    const valueRange = maxAssetValue - minAssetValue;
-    
-    // CRITICAL: Minimum bubble size corresponds to 3 MNOK
-    // Calculate what radius a 3 MNOK bubble should have
-    const MINIMUM_BUBBLE_VALUE = 3000000; // 3 MNOK
-    const effectiveMinValue = Math.min(minAssetValue, MINIMUM_BUBBLE_VALUE);
-    const effectiveRange = maxAssetValue - effectiveMinValue;
-    
+    // Use quadratic scaling (squared) to amplify differences for larger values
+    // This creates larger differences between larger values (like 9 vs 10 MNOK)
     const bubbles = sortedAssets.map(asset => {
-        // Normalize value to 0-1 range, where 3 MNOK = 0 (minimum size)
-        const normalizedValue = effectiveRange > 0 
-            ? (asset.value - effectiveMinValue) / effectiveRange 
-            : 0.5; // If all values are same, use middle size
+        // Clamp value to minimum of 3 MNOK for size calculation
+        const clampedValue = Math.max(asset.value, MINIMUM_BUBBLE_VALUE);
         
-        // Use inverse power (power < 1) to amplify differences
-        // Power of 0.3 means: 10% value diff becomes ~40%+ size diff
-        const amplified = Math.pow(normalizedValue, power);
-        const radius = minRadius + amplified * (maxRadius - minRadius);
+        // Normalize value: map [3 MNOK, max] to [0, 1]
+        const valueRange = maxAssetValue - MINIMUM_BUBBLE_VALUE;
+        const normalizedValue = valueRange > 0 
+            ? (clampedValue - MINIMUM_BUBBLE_VALUE) / valueRange 
+            : 0.5;
         
-        // Ensure minimum size (minRadius) corresponds to 3 MNOK
-        const finalRadius = Math.max(minRadius, radius);
+        // Apply quadratic scaling (squared) to amplify differences for larger values
+        // Squaring makes larger values have proportionally larger sizes
+        const squaredValue = normalizedValue * normalizedValue;
         
-        console.log(`Bubble ${asset.name}: value=${asset.value.toFixed(2)} MNOK, normalized=${normalizedValue.toFixed(3)}, amplified=${amplified.toFixed(3)}, radius=${finalRadius.toFixed(1)}`);
-        return { ...asset, radius: finalRadius };
+        // Calculate radius: min + squared * (max - min)
+        // This gives larger differences for larger values
+        const radius = minRadius + squaredValue * (maxRadius - minRadius);
+        
+        console.log(`Bubble ${asset.name}: value=${(asset.value/1000000).toFixed(2)} MNOK, normalized=${normalizedValue.toFixed(3)}, squared=${squaredValue.toFixed(3)}, radius=${radius.toFixed(1)}`);
+        return { ...asset, radius: Math.max(minRadius, radius) };
     });
     
     // Center point for all bubbles
     const centerX = actualWidth / 2;
     const centerY = actualHeight / 2;
     
-    // Arrange bubbles side by side horizontally, centered, with proper spacing
-    // Calculate total width needed - ensure it fits within canvas
+    // Arrange bubbles side by side horizontally, centered
+    // Allow bubbles to overlap slightly (negative spacing) for better size comparison
+    // Calculate total width needed
     let totalWidth = 0;
     bubbles.forEach(bubble => {
         totalWidth += bubble.radius * 2;
     });
-    // Add spacing between bubbles (minimum 20px)
-    const spacing = 20;
+    // Use negative spacing to allow overlap (but still readable)
+    const spacing = -10; // Negative spacing allows overlap
     totalWidth += spacing * (bubbles.length - 1);
     
-    // Scale down if bubbles don't fit
+    // Scale down if bubbles don't fit (but ensure minimum size for 3 MNOK is maintained)
     const maxWidth = actualWidth - 80; // Leave 40px padding on each side
     if (totalWidth > maxWidth && totalWidth > 0) {
         const scale = maxWidth / totalWidth;
         bubbles.forEach(bubble => {
-            bubble.radius = Math.max(minRadius * 0.5, bubble.radius * scale); // Ensure minimum radius is at least 50% of minRadius
+            bubble.radius = Math.max(minRadius, bubble.radius * scale); // Never go below minimum
         });
         totalWidth = maxWidth;
     }
@@ -3322,7 +3408,7 @@ function createNurseChart(tabNumber = 1) {
     const isGoldTab = tabNumber === 2;
     const isKPITab = tabNumber === 3;
     
-    // For tab 3 (KPI- kjøpekraft), create stacked bar chart
+    // For tab 3 (Markedspremie), create stacked bar chart
     if (isKPITab) {
         createKPIStackedBarChart(ctx, tabNumber);
         return;
@@ -3820,7 +3906,7 @@ function createKPIStackedBarChart(ctx, tabNumber) {
                     borderSkipped: false
                 },
                 {
-                    label: 'Avkastning utover KPI',
+                    label: 'Markedspremie',
                     data: excessReturnValues,
                     backgroundColor: 'oklch(0.55 0.20 260)', // Deeper, more vibrant blue
                     borderColor: 'oklch(0.50 0.18 255)',
@@ -3948,15 +4034,14 @@ function updateKPIInfoCards(yearlyData) {
     const growthTotalEl = document.getElementById('nurse-growth-total');
     const growthAnnualEl = document.getElementById('nurse-growth-annual');
     
-    // Show KPI index end value (182.5) - this is 100 adjusted for KPI in all 25 years
-    if (thirdCardEl) thirdCardEl.textContent = endKpiIndex.toFixed(1);
-    if (thirdLabelEl) thirdLabelEl.textContent = 'Sluttverdi (indeksert)';
-    if (thirdSublabelEl) thirdSublabelEl.textContent = '';
+    // Show Markedspremie - annualized return over KPI
+    if (thirdCardEl) thirdCardEl.textContent = `${annualizedExcessReturn >= 0 ? '+' : ''}${annualizedExcessReturn.toFixed(2)}%`;
+    if (thirdLabelEl) thirdLabelEl.textContent = 'Markedspremie';
+    if (thirdSublabelEl) thirdSublabelEl.textContent = 'per år';
     
-    if (growthContainer && growthTotalEl && growthAnnualEl) {
-        growthTotalEl.textContent = `Vekst utover KPI: ${totalExcessGrowth >= 0 ? '+' : ''}${totalExcessGrowth.toFixed(1)}%`;
-        growthAnnualEl.textContent = `Annualisert utover KPI: ${annualizedExcessReturn >= 0 ? '+' : ''}${annualizedExcessReturn.toFixed(2)}% per år`;
-        growthContainer.style.display = 'flex';
+    // Hide the growth container as we're showing the value directly in the main card
+    if (growthContainer) {
+        growthContainer.style.display = 'none';
     }
     
     // Update start value card to show indexed start value (100)
