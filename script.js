@@ -34,6 +34,7 @@ const state = {
         nurse1: null,
         nurse2: null,
         nurse3: null,
+        nurse4: null,
         allocation: null,
         currentTreemap: null,
         newTreemap: null
@@ -56,128 +57,128 @@ const state = {
 // ========================================
 // CSV Data (Embedded for CORS compatibility)
 // ========================================
-const csvData = `Dato,Risikofri_Rente,High_Yield,Aksjer_Global,Sykepleier_Lonn,Gullprisen
-1995-01-01,100.00,100.00,100.00,220000,271.42
-1995-04-01,101.25,101.80,105.20,220000,271.42
-1995-07-01,102.51,103.64,112.45,220000,271.42
-1995-10-01,103.78,105.50,108.30,220000,271.42
-1996-01-01,105.07,107.40,115.80,228000,271.42
-1996-04-01,106.37,109.32,122.50,228000,271.42
-1996-07-01,107.68,111.28,128.90,228000,271.42
-1996-10-01,109.01,113.27,135.20,228000,271.42
-1997-01-01,110.35,115.29,142.80,237000,271.42
-1997-04-01,111.71,117.35,155.30,237000,271.42
-1997-07-01,113.08,119.44,168.20,237000,271.42
-1997-10-01,114.47,121.57,162.50,237000,271.42
-1998-01-01,115.87,123.74,175.80,246000,271.42
-1998-04-01,117.29,125.94,182.30,246000,271.42
-1998-07-01,118.72,128.18,170.50,246000,271.42
-1998-10-01,120.17,118.50,155.80,246000,271.42
-1999-01-01,121.63,122.40,168.90,256000,271.42
-1999-04-01,123.11,126.50,185.60,256000,271.42
-1999-07-01,124.61,130.70,195.20,256000,271.42
-1999-10-01,126.12,135.10,215.80,256000,271.42
-2000-01-01,127.65,139.60,238.50,267000,271.42
-2000-04-01,129.19,144.30,225.30,267000,271.42
-2000-07-01,130.75,149.10,210.80,267000,271.42
-2000-10-01,132.33,142.50,195.60,267000,271.42
-2001-01-01,133.92,136.80,185.20,278000,271.42
-2001-04-01,135.53,131.50,175.80,278000,273.15
-2001-07-01,137.16,126.60,165.30,278000,274.88
-2001-10-01,138.80,122.10,148.90,278000,276.62
-2002-01-01,140.46,118.20,142.50,290000,278.35
-2002-04-01,142.14,114.80,138.20,290000,294.31
-2002-07-01,143.84,111.90,125.60,290000,310.27
-2002-10-01,145.56,109.50,118.30,290000,326.24
-2003-01-01,147.29,112.80,115.20,302000,342.20
-2003-04-01,149.05,118.50,125.80,302000,360.45
-2003-07-01,150.82,124.60,138.50,302000,378.70
-2003-10-01,152.61,131.20,152.80,302000,396.95
-2004-01-01,154.42,138.30,165.30,315000,415.20
-2004-04-01,156.25,145.80,172.50,315000,418.10
-2004-07-01,158.10,153.70,178.20,315000,421.00
-2004-10-01,159.97,162.10,188.60,315000,423.90
-2005-01-01,161.86,171.00,198.50,329000,426.80
-2005-04-01,163.77,180.40,205.80,329000,452.60
-2005-07-01,165.70,190.30,215.60,329000,478.40
-2005-10-01,167.66,200.80,228.30,329000,504.20
-2006-01-01,169.63,211.90,245.80,343000,530.00
-2006-04-01,171.63,223.50,258.60,343000,556.42
-2006-07-01,173.65,235.80,268.30,343000,582.85
-2006-10-01,175.69,248.60,282.50,343000,609.28
-2007-01-01,177.76,262.10,298.80,358000,635.70
-2007-04-01,179.84,276.20,315.60,358000,685.90
-2007-07-01,181.95,290.90,328.50,358000,736.10
-2007-10-01,184.08,275.80,312.30,358000,786.30
-2008-01-01,186.24,260.50,285.60,374000,836.50
-2008-04-01,188.42,245.80,268.30,374000,846.00
-2008-07-01,190.63,215.60,242.50,374000,855.50
-2008-10-01,192.86,175.30,178.60,374000,865.00
-2009-01-01,195.12,158.20,155.80,391000,874.50
-2009-04-01,197.40,175.60,178.50,391000,934.12
-2009-07-01,199.71,195.80,205.30,391000,993.75
-2009-10-01,202.04,218.50,232.80,391000,1053.38
-2010-01-01,204.40,242.80,258.60,408000,1113.00
-2010-04-01,206.78,268.50,275.30,408000,1181.88
-2010-07-01,209.19,295.80,268.50,408000,1250.75
-2010-10-01,211.62,324.60,298.60,408000,1319.62
-2011-01-01,214.08,355.20,318.50,426000,1388.50
-2011-04-01,216.57,388.60,335.80,426000,1440.88
-2011-07-01,219.08,378.50,305.60,426000,1493.25
-2011-10-01,221.62,365.80,285.30,426000,1545.62
-2012-01-01,224.19,378.50,315.60,445000,1598.00
-2012-04-01,226.79,392.80,338.50,445000,1612.88
-2012-07-01,229.41,408.50,355.80,445000,1627.75
-2012-10-01,232.06,425.60,378.50,445000,1642.62
-2013-01-01,234.74,445.80,412.30,465000,1657.50
-2013-04-01,237.45,468.50,438.60,465000,1549.38
-2013-07-01,240.18,492.80,465.80,465000,1441.25
-2013-10-01,242.95,518.60,498.50,465000,1333.12
-2014-01-01,245.74,545.80,525.60,486000,1225.00
-2014-04-01,248.56,575.50,548.30,486000,1214.75
-2014-07-01,251.41,608.80,565.80,486000,1204.50
-2014-10-01,254.29,642.50,582.50,486000,1194.25
-2015-01-01,257.20,678.60,598.60,508000,1184.00
-2015-04-01,260.14,718.50,625.30,508000,1158.50
-2015-07-01,263.11,762.80,598.50,508000,1133.00
-2015-10-01,266.11,798.60,615.80,508000,1107.50
-2016-01-01,269.14,825.50,585.60,531000,1082.00
-2016-04-01,272.20,858.80,618.50,531000,1102.00
-2016-07-01,275.30,895.60,645.80,531000,1122.00
-2016-10-01,278.42,935.80,678.30,531000,1142.00
-2017-01-01,281.58,978.50,715.60,555000,1162.00
-2017-04-01,284.77,1025.80,755.80,555000,1207.34
-2017-07-01,287.99,1078.50,798.50,555000,1252.67
-2017-10-01,291.24,1135.80,845.60,555000,1298.01
-2018-01-01,294.53,1198.60,895.80,580000,1343.35
-2018-04-01,297.85,1268.50,925.60,580000,1338.14
-2018-07-01,301.20,1345.80,958.50,580000,1332.92
-2018-10-01,304.59,1285.60,875.30,580000,1327.71
-2019-01-01,308.01,1365.80,915.60,606000,1322.50
-2019-04-01,311.47,1458.50,985.80,606000,1387.09
-2019-07-01,314.96,1565.80,1025.50,606000,1451.67
-2019-10-01,318.49,1685.60,1085.80,606000,1516.26
-2020-01-01,322.05,1815.80,1145.60,633000,1580.85
-2020-04-01,325.65,1525.60,885.30,633000,1648.06
-2020-07-01,329.29,1685.80,1025.50,633000,1715.28
-2020-10-01,332.96,1875.50,1185.80,633000,1782.49
-2021-01-01,336.67,2085.60,1325.60,661000,1849.70
-2021-04-01,340.42,2325.80,1485.80,661000,1836.31
-2021-07-01,344.20,2598.50,1625.60,661000,1822.91
-2021-10-01,348.02,2885.80,1785.30,661000,1809.51
-2022-01-01,351.88,3025.60,1685.80,690000,1796.12
-2022-04-01,355.78,2785.50,1485.60,690000,1829.12
-2022-07-01,359.72,2565.80,1385.30,690000,1862.12
-2022-10-01,363.70,2685.60,1485.80,690000,1895.12
-2023-01-01,367.72,2885.80,1585.60,720000,1928.12
-2023-04-01,371.78,3125.50,1725.80,720000,1955.88
-2023-07-01,375.88,3385.80,1865.50,720000,1983.63
-2023-10-01,380.02,3565.60,1985.30,720000,2011.39
-2024-01-01,384.21,3785.80,2125.60,751000,2039.15
-2024-04-01,388.43,3985.50,2285.80,751000,2228.91
-2024-07-01,392.70,4185.80,2425.60,751000,2418.68
-2024-10-01,397.01,4385.60,2565.30,751000,2608.44
-2024-12-01,400.25,4525.80,2685.50,751000,4336.12`;
+const csvData = `Dato,Risikofri_Rente,High_Yield,Aksjer_Global,Sykepleier_Lonn,Gullprisen,BigMac
+1995-01-01,100.00,100.00,100.00,220000,271.42,
+1995-04-01,101.25,101.80,105.20,220000,271.42,
+1995-07-01,102.51,103.64,112.45,220000,271.42,
+1995-10-01,103.78,105.50,108.30,220000,271.42,
+1996-01-01,105.07,107.40,115.80,228000,271.42,
+1996-04-01,106.37,109.32,122.50,228000,271.42,
+1996-07-01,107.68,111.28,128.90,228000,271.42,
+1996-10-01,109.01,113.27,135.20,228000,271.42,
+1997-01-01,110.35,115.29,142.80,237000,271.42,
+1997-04-01,111.71,117.35,155.30,237000,271.42,
+1997-07-01,113.08,119.44,168.20,237000,271.42,
+1997-10-01,114.47,121.57,162.50,237000,271.42,
+1998-01-01,115.87,123.74,175.80,246000,271.42,
+1998-04-01,117.29,125.94,182.30,246000,271.42,
+1998-07-01,118.72,128.18,170.50,246000,271.42,
+1998-10-01,120.17,118.50,155.80,246000,271.42,
+1999-01-01,121.63,122.40,168.90,256000,271.42,
+1999-04-01,123.11,126.50,185.60,256000,271.42,
+1999-07-01,124.61,130.70,195.20,256000,271.42,
+1999-10-01,126.12,135.10,215.80,256000,271.42,
+2000-01-01,127.65,139.60,238.50,267000,271.42,
+2000-04-01,129.19,144.30,225.30,267000,271.42,
+2000-07-01,130.75,149.10,210.80,267000,271.42,
+2000-10-01,132.33,142.50,195.60,267000,271.42,
+2001-01-01,133.92,136.80,185.20,278000,271.42,34.00
+2001-04-01,135.53,131.50,175.80,278000,273.15,34.00
+2001-07-01,137.16,126.60,165.30,278000,274.88,34.00
+2001-10-01,138.80,122.10,148.90,278000,276.62,34.00
+2002-01-01,140.46,118.20,142.50,290000,278.35,34.00
+2002-04-01,142.14,114.80,138.20,290000,294.31,34.00
+2002-07-01,143.84,111.90,125.60,290000,310.27,34.00
+2002-10-01,145.56,109.50,118.30,290000,326.24,34.00
+2003-01-01,147.29,112.80,115.20,302000,342.20,34.00
+2003-04-01,149.05,118.50,125.80,302000,360.45,34.00
+2003-07-01,150.82,124.60,138.50,302000,378.70,34.00
+2003-10-01,152.61,131.20,152.80,302000,396.95,34.00
+2004-01-01,154.42,138.30,165.30,315000,415.20,39.50
+2004-04-01,156.25,145.80,172.50,315000,418.10,39.50
+2004-07-01,158.10,153.70,178.20,315000,421.00,39.50
+2004-10-01,159.97,162.10,188.60,315000,423.90,39.50
+2005-01-01,161.86,171.00,198.50,329000,426.80,40.00
+2005-04-01,163.77,180.40,205.80,329000,452.60,40.00
+2005-07-01,165.70,190.30,215.60,329000,478.40,40.00
+2005-10-01,167.66,200.80,228.30,329000,504.20,40.00
+2006-01-01,169.63,211.90,245.80,343000,530.00,40.00
+2006-04-01,171.63,223.50,258.60,343000,556.42,40.00
+2006-07-01,173.65,235.80,268.30,343000,582.85,40.00
+2006-10-01,175.69,248.60,282.50,343000,609.28,40.00
+2007-01-01,177.76,262.10,298.80,358000,635.70,40.00
+2007-04-01,179.84,276.20,315.60,358000,685.90,40.00
+2007-07-01,181.95,290.90,328.50,358000,736.10,40.00
+2007-10-01,184.08,275.80,312.30,358000,786.30,40.00
+2008-01-01,186.24,260.50,285.60,374000,836.50,40.00
+2008-04-01,188.42,245.80,268.30,374000,846.00,40.00
+2008-07-01,190.63,215.60,242.50,374000,855.50,40.00
+2008-10-01,192.86,175.30,178.60,374000,865.00,40.00
+2009-01-01,195.12,158.20,155.80,391000,874.50,42.00
+2009-04-01,197.40,175.60,178.50,391000,934.12,42.00
+2009-07-01,199.71,195.80,205.30,391000,993.75,42.00
+2009-10-01,202.04,218.50,232.80,391000,1053.38,42.00
+2010-01-01,204.40,242.80,258.60,408000,1113.00,45.00
+2010-04-01,206.78,268.50,275.30,408000,1181.88,45.00
+2010-07-01,209.19,295.80,268.50,408000,1250.75,45.00
+2010-10-01,211.62,324.60,298.60,408000,1319.62,45.00
+2011-01-01,214.08,355.20,318.50,426000,1388.50,45.00
+2011-04-01,216.57,388.60,335.80,426000,1440.88,45.00
+2011-07-01,219.08,378.50,305.60,426000,1493.25,45.00
+2011-10-01,221.62,365.80,285.30,426000,1545.62,45.00
+2012-01-01,224.19,378.50,315.60,445000,1598.00,42.00
+2012-04-01,226.79,392.80,338.50,445000,1612.88,42.00
+2012-07-01,229.41,408.50,355.80,445000,1627.75,42.00
+2012-10-01,232.06,425.60,378.50,445000,1642.62,42.00
+2013-01-01,234.74,445.80,412.30,465000,1657.50,46.00
+2013-04-01,237.45,468.50,438.60,465000,1549.38,46.00
+2013-07-01,240.18,492.80,465.80,465000,1441.25,46.00
+2013-10-01,242.95,518.60,498.50,465000,1333.12,46.00
+2014-01-01,245.74,545.80,525.60,486000,1225.00,48.00
+2014-04-01,248.56,575.50,548.30,486000,1214.75,48.00
+2014-07-01,251.41,608.80,565.80,486000,1204.50,48.00
+2014-10-01,254.29,642.50,582.50,486000,1194.25,48.00
+2015-01-01,257.20,678.60,598.60,508000,1184.00,46.00
+2015-04-01,260.14,718.50,625.30,508000,1158.50,46.00
+2015-07-01,263.11,762.80,598.50,508000,1133.00,46.00
+2015-10-01,266.11,798.60,615.80,508000,1107.50,46.00
+2016-01-01,269.14,825.50,585.60,531000,1082.00,49.00
+2016-04-01,272.20,858.80,618.50,531000,1102.00,49.00
+2016-07-01,275.30,895.60,645.80,531000,1122.00,49.00
+2016-10-01,278.42,935.80,678.30,531000,1142.00,49.00
+2017-01-01,281.58,978.50,715.60,555000,1162.00,52.00
+2017-04-01,284.77,1025.80,755.80,555000,1207.34,52.00
+2017-07-01,287.99,1078.50,798.50,555000,1252.67,52.00
+2017-10-01,291.24,1135.80,845.60,555000,1298.01,52.00
+2018-01-01,294.53,1198.60,895.80,580000,1343.35,49.00
+2018-04-01,297.85,1268.50,925.60,580000,1338.14,49.00
+2018-07-01,301.20,1345.80,958.50,580000,1332.92,49.00
+2018-10-01,304.59,1285.60,875.30,580000,1327.71,49.00
+2019-01-01,308.01,1365.80,915.60,606000,1322.50,53.00
+2019-04-01,311.47,1458.50,985.80,606000,1387.09,53.00
+2019-07-01,314.96,1565.80,1025.50,606000,1451.67,53.00
+2019-10-01,318.49,1685.60,1085.80,606000,1516.26,53.00
+2020-01-01,322.05,1815.80,1145.60,633000,1580.85,55.00
+2020-04-01,325.65,1525.60,885.30,633000,1648.06,55.00
+2020-07-01,329.29,1685.80,1025.50,633000,1715.28,55.00
+2020-10-01,332.96,1875.50,1185.80,633000,1782.49,55.00
+2021-01-01,336.67,2085.60,1325.60,661000,1849.70,57.00
+2021-04-01,340.42,2325.80,1485.80,661000,1836.31,57.00
+2021-07-01,344.20,2598.50,1625.60,661000,1822.91,57.00
+2021-10-01,348.02,2885.80,1785.30,661000,1809.51,57.00
+2022-01-01,351.88,3025.60,1685.80,690000,1796.12,62.00
+2022-04-01,355.78,2785.50,1485.60,690000,1829.12,62.00
+2022-07-01,359.72,2565.80,1385.30,690000,1862.12,62.00
+2022-10-01,363.70,2685.60,1485.80,690000,1895.12,62.00
+2023-01-01,367.72,2885.80,1585.60,720000,1928.12,70.00
+2023-04-01,371.78,3125.50,1725.80,720000,1955.88,70.00
+2023-07-01,375.88,3385.80,1865.50,720000,1983.63,70.00
+2023-10-01,380.02,3565.60,1985.30,720000,2011.39,70.00
+2024-01-01,384.21,3785.80,2125.60,751000,2039.15,75.00
+2024-04-01,388.43,3985.50,2285.80,751000,2228.91,75.00
+2024-07-01,392.70,4185.80,2425.60,751000,2418.68,75.00
+2024-10-01,397.01,4385.60,2565.30,751000,2608.44,75.00
+2024-12-01,400.25,4525.80,2685.50,751000,4336.12,79.00`;
 
 // ========================================
 // CSV Parser
@@ -234,6 +235,9 @@ function parseCSV(csvString) {
             } else if (header.toLowerCase() === 'kpi') {
                 const numValue = value.replace(/\s/g, '').replace(',', '.');
                 row.kpi = parseFloat(numValue);
+            } else if (header.toLowerCase().includes('bigmac')) {
+                const numValue = value.replace(/\s/g, '').replace(',', '.');
+                row.bigMacPrice = parseFloat(numValue);
             }
         });
         
@@ -362,7 +366,8 @@ function calculatePortfolioValue(data, allocation, startCapital) {
             date: row.date,
             value: portfolioValue,
             nurseSalary: row.nurseSalary,
-            goldPrice: row.goldPrice
+            goldPrice: row.goldPrice,
+            bigMacPrice: row.bigMacPrice
         });
     });
     
@@ -3407,6 +3412,7 @@ function createNurseChart(tabNumber = 1) {
     const filteredData = getFilteredData();
     const isGoldTab = tabNumber === 2;
     const isKPITab = tabNumber === 3;
+    const isBigMacTab = tabNumber === 4;
     
     // For tab 3 (Markedspremie), create stacked bar chart
     if (isKPITab) {
@@ -3428,6 +3434,7 @@ function createNurseChart(tabNumber = 1) {
     // Calculate index (portfolio value / reference value at each point in time)
     // For tab 1: nurse index (portfolio value / nurse salary)
     // For tab 2: gold index (portfolio value / gold price in NOK per unse)
+    // For tab 4: BigMac index (portfolio value / BigMac price)
     // Calculate for all data points for tooltip, but filter display to January 1st for smoother line
     const lastValue = newValues[newValues.length - 1];
     const indexAll = newValues.map(v => {
@@ -3443,6 +3450,16 @@ function createNurseChart(tabNumber = 1) {
                 referenceValue = v.goldPrice || 0;
             }
             index = referenceValue > 0 ? v.value / referenceValue : 0;
+        } else if (isBigMacTab) {
+            // For BigMac: portfolio value / BigMac price = antall BigMac
+            // Only calculate if BigMac price exists (data starts from 2001)
+            referenceValue = v.bigMacPrice || 0;
+            if (referenceValue > 0) {
+                index = v.value / referenceValue;
+            } else {
+                // Skip data points without BigMac price (before 2001)
+                index = null;
+            }
         } else {
             // For nurse: portfolio value / nurse salary = årslønner
             referenceValue = v.nurseSalary || 0;
@@ -3455,12 +3472,15 @@ function createNurseChart(tabNumber = 1) {
             referenceValue: referenceValue,
             nurseSalary: v.nurseSalary,
             goldPrice: isGoldTab && v === lastValue ? 4336 : v.goldPrice,
+            bigMacPrice: v.bigMacPrice,
             index: index
         };
     });
     
     // Filter to only include January 1st of each year for display (smoother line), plus last data point
+    // For BigMac tab, also filter out null values (data before 2001)
     const indexYearly = indexAll.filter(v => {
+        if (isBigMacTab && v.index === null) return false; // Skip null values for BigMac
         const date = v.date;
         const isJan1 = date.getMonth() === 0 && date.getDate() === 1;
         const isLastPoint = v === indexAll[indexAll.length - 1];
@@ -3471,15 +3491,15 @@ function createNurseChart(tabNumber = 1) {
     const portfolioData = newValues.map(v => ({ x: v.date, y: v.value }));
     
     // Destroy existing chart for this tab
-    const chartKey = tabNumber === 1 ? 'nurse1' : (tabNumber === 2 ? 'nurse2' : 'nurse3');
+    const chartKey = tabNumber === 1 ? 'nurse1' : (tabNumber === 2 ? 'nurse2' : (tabNumber === 3 ? 'nurse3' : 'nurse4'));
     if (state.charts[chartKey]) {
         state.charts[chartKey].destroy();
     }
     
-    const indexLabel = isGoldTab ? 'Gullprisindeks (unser)' : 'Sykepleierindeks (årslønner)';
-    const yAxisLabel = isGoldTab ? 'unser' : 'årslønner';
-    const tooltipUnit = isGoldTab ? 'unser' : 'årslønner';
-    const tooltipReferenceLabel = isGoldTab ? 'Gullpris' : 'Lønn';
+    const indexLabel = isGoldTab ? 'Gullprisindeks (unser)' : (isBigMacTab ? 'BigMac-indeksen (antall)' : 'Sykepleierindeks (årslønner)');
+    const yAxisLabel = isGoldTab ? 'unser' : (isBigMacTab ? 'antall' : 'årslønner');
+    const tooltipUnit = isGoldTab ? 'unser' : (isBigMacTab ? 'antall' : 'årslønner');
+    const tooltipReferenceLabel = isGoldTab ? 'Gullpris' : (isBigMacTab ? 'BigMac-pris' : 'Lønn');
     
     state.charts[chartKey] = new Chart(ctx, {
         type: 'line',
@@ -3497,9 +3517,9 @@ function createNurseChart(tabNumber = 1) {
                 },
                 {
                     label: indexLabel,
-                    data: indexAll.map(n => ({ x: n.date, y: n.index })),
-                    borderColor: isGoldTab ? chartColors.gold : chartColors.nurse,
-                    backgroundColor: isGoldTab ? 'oklch(0.65 0.15 75 / 0.2)' : 'oklch(0.55 0.18 145 / 0.2)',
+                    data: indexAll.filter(n => n.index !== null && n.index > 0).map(n => ({ x: n.date, y: n.index })),
+                    borderColor: isGoldTab ? chartColors.gold : (isBigMacTab ? '#DA291C' : chartColors.nurse),
+                    backgroundColor: isGoldTab ? 'oklch(0.65 0.15 75 / 0.2)' : (isBigMacTab ? 'rgba(218, 41, 28, 0.2)' : 'oklch(0.55 0.18 145 / 0.2)'),
                     borderWidth: 3.5,
                     fill: true,
                     tension: 0.3,
@@ -3543,7 +3563,7 @@ function createNurseChart(tabNumber = 1) {
                             family: "'JetBrains Mono', monospace",
                             size: 11
                         },
-                        color: isGoldTab ? chartColors.gold : chartColors.nurse,
+                        color: isGoldTab ? chartColors.gold : (isBigMacTab ? '#DA291C' : chartColors.nurse),
                         callback: function(value) {
                             return value.toFixed(0) + ' ' + yAxisLabel;
                         }
@@ -3563,10 +3583,12 @@ function createNurseChart(tabNumber = 1) {
                                 if (context.parsed && !isNaN(context.parsed.y)) {
                                     const point = indexAll[context.dataIndex];
                                     if (point) {
-                                        // Format gold price as USD, nurse salary as NOK
+                                        // Format gold price as USD, nurse salary and BigMac price as NOK
                                         const referenceLabel = isGoldTab 
                                             ? point.goldPrice.toFixed(0) + ' USD'
-                                            : formatCurrency(point.referenceValue);
+                                            : (isBigMacTab 
+                                                ? point.bigMacPrice.toFixed(2) + ' NOK'
+                                                : formatCurrency(point.referenceValue));
                                         return [
                                             'Indeks: ' + context.parsed.y.toFixed(1) + ' ' + tooltipUnit,
                                             'Portefølje: ' + formatCurrency(point.value),
@@ -3590,7 +3612,7 @@ function createNurseChart(tabNumber = 1) {
     const startData = filteredData[0];
     let startReferenceValue = 0;
     
-    // Get start reference value (salary for tab 1, gold price for tab 2)
+    // Get start reference value (salary for tab 1, gold price for tab 2, BigMac price for tab 4)
     if (isGoldTab) {
         // Try filteredData first
         if (startData && startData.goldPrice) {
@@ -3606,6 +3628,27 @@ function createNurseChart(tabNumber = 1) {
             if (matchingData && matchingData.goldPrice) {
                 startReferenceValue = parseFloat(matchingData.goldPrice);
             }
+        }
+    } else if (isBigMacTab) {
+        // For BigMac, use price from start date of filtered period
+        // Try filteredData first
+        if (startData && startData.bigMacPrice) {
+            startReferenceValue = parseFloat(startData.bigMacPrice);
+        }
+        // Try newValues as fallback
+        else if (newValues[0] && newValues[0].bigMacPrice) {
+            startReferenceValue = parseFloat(newValues[0].bigMacPrice);
+        }
+        // Try state.data as last resort
+        else if (state.data && state.data.length > 0) {
+            const matchingData = state.data.find(d => d.date && d.date.getTime() === startData.date.getTime());
+            if (matchingData && matchingData.bigMacPrice) {
+                startReferenceValue = parseFloat(matchingData.bigMacPrice);
+            }
+        }
+        // Fallback to 34.00 if no data found (shouldn't happen for periods with BigMac data)
+        if (startReferenceValue === 0) {
+            startReferenceValue = 34.00;
         }
     } else {
         // Try filteredData first
@@ -3627,9 +3670,19 @@ function createNurseChart(tabNumber = 1) {
     
     // Get end reference value
     let endReferenceValue = 0;
+    const endData = filteredData[filteredData.length - 1];
     if (isGoldTab) {
         // For gold, use hardcoded end value (01.12.2025)
         endReferenceValue = 4336; // 4336 USD
+    } else if (isBigMacTab) {
+        // For BigMac, use price from end date of filtered period, or 79.00 as fallback
+        if (endData && endData.bigMacPrice) {
+            endReferenceValue = parseFloat(endData.bigMacPrice);
+        } else if (newValues.length > 0 && newValues[newValues.length - 1].bigMacPrice) {
+            endReferenceValue = parseFloat(newValues[newValues.length - 1].bigMacPrice);
+        } else {
+            endReferenceValue = 79.00; // Fallback to 2025 price
+        }
     } else {
         endReferenceValue = 700000; // Hardcoded current salary
     }
@@ -3652,6 +3705,33 @@ function createNurseChart(tabNumber = 1) {
     if (isKPITab) {
         // Labels for KPI tab are updated in updateKPIInfoCards
         // Skip label updates here
+    } else if (isBigMacTab) {
+        // Update labels for BigMac tab
+        const firstLabelEl = document.getElementById('nurse-index-first-label');
+        if (firstLabelEl) firstLabelEl.textContent = 'Antall BigMac første år';
+        
+        const tenYearsLabelEl = document.getElementById('nurse-index-10-years-label');
+        if (tenYearsLabelEl) tenYearsLabelEl.textContent = 'Antall BigMac 10 år før siste dato';
+        
+        const lastLabelEl = document.getElementById('nurse-index-last-label');
+        if (lastLabelEl) lastLabelEl.textContent = 'Antall BigMac siste år';
+        
+        // Update sublabels
+        const firstSublabelEl = document.getElementById('nurse-index-first-sublabel');
+        if (firstSublabelEl) firstSublabelEl.textContent = 'BigMac';
+        
+        const tenYearsSublabelEl = document.getElementById('nurse-index-10-years-sublabel');
+        if (tenYearsSublabelEl) tenYearsSublabelEl.textContent = 'BigMac';
+        
+        const lastSublabelEl = document.getElementById('nurse-index-last-sublabel');
+        if (lastSublabelEl) lastSublabelEl.textContent = 'BigMac';
+        
+        // Update start/end value sublabels
+        const startSublabelEl = document.getElementById('nurse-start-sublabel');
+        if (startSublabelEl) startSublabelEl.textContent = 'kr';
+        
+        const endSublabelEl = document.getElementById('nurse-end-sublabel');
+        if (endSublabelEl) endSublabelEl.textContent = 'kr';
     } else if (isGoldTab) {
         // Update labels for gold tab
         const firstLabelEl = document.getElementById('nurse-index-first-label');
@@ -3711,14 +3791,28 @@ function createNurseChart(tabNumber = 1) {
     // Update start value label
     const startLabelEl = document.getElementById('nurse-start-label');
     if (startLabelEl) {
-        startLabelEl.textContent = `Startverdi (${startYear})`;
+        if (isBigMacTab) {
+            // Show the actual start date for the filtered period
+            const startDate = startData && startData.date ? startData.date : new Date(startYear, 0, 1);
+            const day = String(startDate.getDate()).padStart(2, '0');
+            const month = String(startDate.getMonth() + 1).padStart(2, '0');
+            const year = startDate.getFullYear();
+            startLabelEl.textContent = `Startverdi (${day}.${month}.${year})`;
+        } else {
+            startLabelEl.textContent = `Startverdi (${startYear})`;
+        }
     }
     
     // Update start value
     const nurseStartEl = document.getElementById('nurse-start');
     if (nurseStartEl) {
         if (startReferenceValue > 0) {
-            nurseStartEl.textContent = startReferenceValue.toLocaleString('no-NO', { maximumFractionDigits: 0 });
+            if (isBigMacTab) {
+                // For BigMac, show with 2 decimals
+                nurseStartEl.textContent = startReferenceValue.toFixed(2);
+            } else {
+                nurseStartEl.textContent = startReferenceValue.toLocaleString('no-NO', { maximumFractionDigits: 0 });
+            }
         } else {
             nurseStartEl.textContent = '-';
         }
@@ -3726,9 +3820,16 @@ function createNurseChart(tabNumber = 1) {
     
     // Update end value
     const nurseEndEl = document.getElementById('nurse-end');
+    const endLabelEl = document.getElementById('nurse-end-label');
     if (nurseEndEl) {
         if (endReferenceValue > 0) {
-            nurseEndEl.textContent = endReferenceValue.toLocaleString('no-NO', { maximumFractionDigits: 0 });
+            if (isBigMacTab) {
+                // For BigMac, show as integer (79)
+                nurseEndEl.textContent = Math.round(endReferenceValue);
+                if (endLabelEl) endLabelEl.textContent = 'Sluttverdi (i dag)';
+            } else {
+                nurseEndEl.textContent = endReferenceValue.toLocaleString('no-NO', { maximumFractionDigits: 0 });
+            }
         } else {
             nurseEndEl.textContent = '-';
         }
@@ -3811,20 +3912,31 @@ function createKPIStackedBarChart(ctx, tabNumber) {
     const chartKey = 'nurse3';
     if (state.charts[chartKey]) {
         state.charts[chartKey].destroy();
+        state.charts[chartKey] = null;
     }
     
-    // Get all years from 2001 to 2025
+    // Get filtered data to determine the period
+    const filteredData = getFilteredData();
+    
+    // Determine year range from filtered data
+    let minYear = 2001;
+    let maxYear = 2025;
+    if (filteredData.length > 0) {
+        minYear = filteredData[0].date.getFullYear();
+        maxYear = filteredData[filteredData.length - 1].date.getFullYear();
+    }
+    
+    // Get all years in the filtered period
     const years = [];
-    for (let year = 2001; year <= 2025; year++) {
+    for (let year = minYear; year <= maxYear; year++) {
         years.push(year);
     }
     
     // Calculate yearly KPI from CSV data (average of monthly values)
-    const filteredData = getFilteredData();
     const byYear = {};
     filteredData.forEach(row => {
         const year = row.date.getFullYear();
-        if (year >= 2001 && year <= 2025) {
+        if (year >= minYear && year <= maxYear) {
             if (!byYear[year]) {
                 byYear[year] = [];
             }
@@ -3859,8 +3971,11 @@ function createKPIStackedBarChart(ctx, tabNumber) {
     const excessReturnValues = []; // Excess return in percent for each year (for chart)
     
     // Calculate indices for each year
+    // Make sure we process years in order and handle missing data
     years.forEach(year => {
-        const kpi = yearlyKPIs[year] || 0;
+        // Convert year to string for lookup (yearlyKPIs uses string keys)
+        const yearStr = year.toString();
+        const kpi = yearlyKPIs[yearStr] !== undefined ? yearlyKPIs[yearStr] : 0;
         
         // Update KPI index: multiply by (1 + kpi/100) - for cumulative calculation
         kpiIndex = kpiIndex * (1 + kpi / 100);
@@ -3891,16 +4006,92 @@ function createKPIStackedBarChart(ctx, tabNumber) {
         });
     });
     
+    // Ensure labels are strings and match data length
+    const chartLabels = years.map(y => y.toString());
+    
+    // Debug: Log to check data consistency
+    console.log('KPI Chart Data:', {
+        years: years.length,
+        labels: chartLabels.length,
+        kpiValues: kpiPercentValues.length,
+        excessValues: excessReturnValues.length
+    });
+    
+    // Register custom plugin to completely disable hover effects
+    const disableHoverPlugin = {
+        id: 'disableHover',
+        beforeEvent: function(chart, args) {
+            // Intercept all events and prevent hover effects
+            if (args.event && args.event.type === 'mousemove') {
+                // Force all bars to remain visible before any hover processing
+                if (chart.data && chart.data.datasets) {
+                    chart.data.datasets.forEach((dataset, datasetIndex) => {
+                        const meta = chart.getDatasetMeta(datasetIndex);
+                        if (meta && meta.data) {
+                            meta.data.forEach((bar) => {
+                                if (bar) {
+                                    // Set hover colors to match normal colors
+                                    bar.options.hoverBackgroundColor = dataset.backgroundColor;
+                                    bar.options.hoverBorderColor = dataset.borderColor;
+                                    bar.options.hoverBorderWidth = dataset.borderWidth;
+                                    bar.options.hoverOpacity = 1;
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        },
+        afterEvent: function(chart, args) {
+            // After event processing, force all bars to be fully visible
+            if (chart.data && chart.data.datasets) {
+                chart.data.datasets.forEach((dataset, datasetIndex) => {
+                    const meta = chart.getDatasetMeta(datasetIndex);
+                    if (meta && meta.data) {
+                        meta.data.forEach((bar) => {
+                            if (bar && bar._model) {
+                                // Force opacity to always be 1
+                                bar._model.opacity = 1;
+                                bar._model.backgroundColor = dataset.backgroundColor;
+                                bar._model.borderColor = dataset.borderColor;
+                            }
+                        });
+                    }
+                });
+                // Force a redraw to ensure changes are visible
+                chart.draw();
+            }
+        },
+        beforeUpdate: function(chart) {
+            // Before update, ensure all hover options are set correctly
+            if (chart.data && chart.data.datasets) {
+                chart.data.datasets.forEach((dataset, datasetIndex) => {
+                    const meta = chart.getDatasetMeta(datasetIndex);
+                    if (meta && meta.data) {
+                        meta.data.forEach((bar) => {
+                            if (bar) {
+                                bar.options.hoverBackgroundColor = dataset.backgroundColor;
+                                bar.options.hoverBorderColor = dataset.borderColor;
+                                bar.options.hoverBorderWidth = dataset.borderWidth;
+                                bar.options.hoverOpacity = 1;
+                            }
+                        });
+                    }
+                });
+            }
+        }
+    };
+    
     state.charts[chartKey] = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: years,
+            labels: chartLabels,
             datasets: [
                 {
                     label: 'KPI',
                     data: kpiPercentValues,
-                    backgroundColor: 'oklch(0.70 0.20 85)', // Warmer, richer gold
-                    borderColor: 'oklch(0.65 0.18 80)',
+                    backgroundColor: 'oklch(0.65 0.02 0)', // Pleasant gray
+                    borderColor: 'oklch(0.55 0.02 0)', // Slightly darker gray for border
                     borderWidth: 1.5,
                     borderRadius: 4,
                     borderSkipped: false
@@ -3919,6 +4110,40 @@ function createKPIStackedBarChart(ctx, tabNumber) {
         options: {
             ...commonChartOptions,
             indexAxis: 'x',
+            animation: {
+                duration: 0  // Disable animations to prevent hover effects
+            },
+            transitions: {
+                active: {
+                    animation: {
+                        duration: 0
+                    }
+                },
+                hover: {
+                    animation: {
+                        duration: 0
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: false  // Completely disable interaction mode
+            },
+            onHover: null,  // Disable hover completely
+            elements: {
+                bar: {
+                    hoverBackgroundColor: function(context) {
+                        return context.dataset.backgroundColor;
+                    },
+                    hoverBorderColor: function(context) {
+                        return context.dataset.borderColor;
+                    },
+                    hoverBorderWidth: function(context) {
+                        return context.dataset.borderWidth;
+                    },
+                    hoverOpacity: 1  // Keep full opacity on hover
+                }
+            },
             scales: {
                 x: {
                     stacked: true,
@@ -3978,15 +4203,21 @@ function createKPIStackedBarChart(ctx, tabNumber) {
                     ...commonChartOptions.plugins.legend,
                     display: true
                 }
-            }
+            },
+            plugins: [disableHoverPlugin]
         }
     });
     
+    // Force chart update to ensure it renders properly
+    if (state.charts[chartKey]) {
+        state.charts[chartKey].update('none');
+    }
+    
     // Update info cards for KPI tab
-    updateKPIInfoCards(yearlyData);
+    updateKPIInfoCards(yearlyData, minYear);
 }
 
-function updateKPIInfoCards(yearlyData) {
+function updateKPIInfoCards(yearlyData, startYear) {
     // Card 1: Antall år med avkastning utover KPI
     const yearsWithExcessReturn = yearlyData.filter(d => d.excessReturn > 0).length;
     const firstCardEl = document.getElementById('nurse-index-first');
@@ -4044,12 +4275,19 @@ function updateKPIInfoCards(yearlyData) {
         growthContainer.style.display = 'none';
     }
     
-    // Update start value card to show indexed start value (100)
+    // Update start value card to show indexed start value (100) with actual start year
     const startValueEl = document.getElementById('nurse-start');
     const startLabelEl = document.getElementById('nurse-start-label');
     const startSublabelEl = document.getElementById('nurse-start-sublabel');
     if (startValueEl) startValueEl.textContent = '100';
-    if (startLabelEl) startLabelEl.textContent = 'Startverdi (indeksert)';
+    if (startLabelEl) {
+        // Show the actual start year instead of always "indeksert"
+        if (startYear) {
+            startLabelEl.textContent = `Startverdi (${startYear})`;
+        } else {
+            startLabelEl.textContent = 'Startverdi (indeksert)';
+        }
+    }
     if (startSublabelEl) startSublabelEl.textContent = '';
     
     // Update end value card to show KPI index end value (182.5) - 100 adjusted for KPI in all years
@@ -4446,10 +4684,12 @@ function setupEventListeners() {
             const canvas1 = document.getElementById('nurse-chart-1');
             const canvas2 = document.getElementById('nurse-chart-2');
             const canvas3 = document.getElementById('nurse-chart-3');
-            if (canvas1 && canvas2 && canvas3) {
+            const canvas4 = document.getElementById('nurse-chart-4');
+            if (canvas1 && canvas2 && canvas3 && canvas4) {
                 canvas1.style.display = tabNumber === 1 ? 'block' : 'none';
                 canvas2.style.display = tabNumber === 2 ? 'block' : 'none';
                 canvas3.style.display = tabNumber === 3 ? 'block' : 'none';
+                canvas4.style.display = tabNumber === 4 ? 'block' : 'none';
             }
             
             // Create/update chart for selected tab
