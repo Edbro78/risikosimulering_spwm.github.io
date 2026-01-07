@@ -238,6 +238,9 @@ function parseCSV(csvString) {
             } else if (header.toLowerCase().includes('bigmac')) {
                 const numValue = value.replace(/\s/g, '').replace(',', '.');
                 row.bigMacPrice = parseFloat(numValue);
+            } else if (header.toLowerCase().includes('oljepris brent') || header.toLowerCase().includes('oljepris')) {
+                const numValue = value.replace(/\s/g, '').replace(',', '.');
+                row.oilPrice = parseFloat(numValue);
             }
         });
         
@@ -367,7 +370,8 @@ function calculatePortfolioValue(data, allocation, startCapital) {
             value: portfolioValue,
             nurseSalary: row.nurseSalary,
             goldPrice: row.goldPrice,
-            bigMacPrice: row.bigMacPrice
+            bigMacPrice: row.bigMacPrice,
+            oilPrice: row.oilPrice
         });
     });
     
@@ -2909,22 +2913,19 @@ function createUnderwaterChart(drawdowns, viewType = 'percent') {
         state.charts.drawdown.destroy();
     }
     
-    // Find min and max drawdown values for Y-axis configuration
-    const drawdownValues = drawdowns.map(d => d.drawdown);
-    const minDrawdown = Math.min(...drawdownValues);
-    const maxDrawdown = Math.max(...drawdownValues, 0);
-    
-    // Y-axis configuration based on view type
+    // Y-axis configuration
     let yMin, yMax;
     if (viewType === 'kr') {
-        // For kr view: Y-axis should go down to largest fall in MNOK + 0.5 MNOK
+        // For kr view: Y-axis should go down to largest fall in MNOK + 0.5 MNOK (dynamic)
+        const drawdownValues = drawdowns.map(d => d.drawdown);
+        const minDrawdown = Math.min(...drawdownValues);
         // minDrawdown is already negative (loss in kr), so we add 0.5 MNOK (500000) to it
         yMin = minDrawdown - 500000; // Subtract 0.5 MNOK (500000 kr)
         yMax = 0;
     } else {
-        // For percent view: Y-axis should go down to lowest point + 1% padding
-        yMin = minDrawdown - 1; // Lowest point minus 1%
-        yMax = 0; // Start at 0% at the top
+        // For percent view: Static from 0% to -80%
+        yMin = -80; // -80%
+        yMax = 0; // 0% at the top
     }
     
     // Define colors based on view type
@@ -3413,6 +3414,7 @@ function createNurseChart(tabNumber = 1) {
     const isGoldTab = tabNumber === 2;
     const isKPITab = tabNumber === 3;
     const isBigMacTab = tabNumber === 4;
+    const isOilTab = tabNumber === 5;
     
     // For tab 3 (Markedspremie), create stacked bar chart
     if (isKPITab) {
@@ -3460,6 +3462,16 @@ function createNurseChart(tabNumber = 1) {
                 // Skip data points without BigMac price (before 2001)
                 index = null;
             }
+        } else if (isOilTab) {
+            // For Oil: portfolio value / oil price = antall fat olje
+            // Only calculate if oil price exists (data starts from 2001)
+            referenceValue = v.oilPrice || 0;
+            if (referenceValue > 0) {
+                index = v.value / referenceValue;
+            } else {
+                // Skip data points without oil price (before 2001)
+                index = null;
+            }
         } else {
             // For nurse: portfolio value / nurse salary = årslønner
             referenceValue = v.nurseSalary || 0;
@@ -3473,14 +3485,15 @@ function createNurseChart(tabNumber = 1) {
             nurseSalary: v.nurseSalary,
             goldPrice: isGoldTab && v === lastValue ? 4336 : v.goldPrice,
             bigMacPrice: v.bigMacPrice,
+            oilPrice: v.oilPrice,
             index: index
         };
     });
     
     // Filter to only include January 1st of each year for display (smoother line), plus last data point
-    // For BigMac tab, also filter out null values (data before 2001)
+    // For BigMac and Oil tabs, also filter out null values (data before 2001)
     const indexYearly = indexAll.filter(v => {
-        if (isBigMacTab && v.index === null) return false; // Skip null values for BigMac
+        if ((isBigMacTab || isOilTab) && v.index === null) return false; // Skip null values for BigMac and Oil
         const date = v.date;
         const isJan1 = date.getMonth() === 0 && date.getDate() === 1;
         const isLastPoint = v === indexAll[indexAll.length - 1];
@@ -3491,15 +3504,15 @@ function createNurseChart(tabNumber = 1) {
     const portfolioData = newValues.map(v => ({ x: v.date, y: v.value }));
     
     // Destroy existing chart for this tab
-    const chartKey = tabNumber === 1 ? 'nurse1' : (tabNumber === 2 ? 'nurse2' : (tabNumber === 3 ? 'nurse3' : 'nurse4'));
+    const chartKey = tabNumber === 1 ? 'nurse1' : (tabNumber === 2 ? 'nurse2' : (tabNumber === 3 ? 'nurse3' : (tabNumber === 4 ? 'nurse4' : 'nurse5')));
     if (state.charts[chartKey]) {
         state.charts[chartKey].destroy();
     }
     
-    const indexLabel = isGoldTab ? 'Gullprisindeks (unser)' : (isBigMacTab ? 'BigMac-indeksen (antall)' : 'Sykepleierindeks (årslønner)');
-    const yAxisLabel = isGoldTab ? 'unser' : (isBigMacTab ? 'antall' : 'årslønner');
-    const tooltipUnit = isGoldTab ? 'unser' : (isBigMacTab ? 'antall' : 'årslønner');
-    const tooltipReferenceLabel = isGoldTab ? 'Gullpris' : (isBigMacTab ? 'BigMac-pris' : 'Lønn');
+    const indexLabel = isGoldTab ? 'Gullprisindeks (unser)' : (isBigMacTab ? 'BigMac-indeksen (antall)' : (isOilTab ? 'Oljepris Brent-indeksen (antall fat)' : 'Sykepleierindeks (årslønner)'));
+    const yAxisLabel = isGoldTab ? 'unser' : (isBigMacTab ? 'antall' : (isOilTab ? 'antall fat' : 'årslønner'));
+    const tooltipUnit = isGoldTab ? 'unser' : (isBigMacTab ? 'antall' : (isOilTab ? 'antall fat' : 'årslønner'));
+    const tooltipReferenceLabel = isGoldTab ? 'Gullpris' : (isBigMacTab ? 'BigMac-pris' : (isOilTab ? 'Oljepris' : 'Lønn'));
     
     state.charts[chartKey] = new Chart(ctx, {
         type: 'line',
@@ -3518,8 +3531,8 @@ function createNurseChart(tabNumber = 1) {
                 {
                     label: indexLabel,
                     data: indexAll.filter(n => n.index !== null && n.index > 0).map(n => ({ x: n.date, y: n.index })),
-                    borderColor: isGoldTab ? chartColors.gold : (isBigMacTab ? '#DA291C' : chartColors.nurse),
-                    backgroundColor: isGoldTab ? 'oklch(0.65 0.15 75 / 0.2)' : (isBigMacTab ? 'rgba(218, 41, 28, 0.2)' : 'oklch(0.55 0.18 145 / 0.2)'),
+                    borderColor: isGoldTab ? chartColors.gold : (isBigMacTab ? '#DA291C' : (isOilTab ? '#000000' : chartColors.nurse)),
+                    backgroundColor: isGoldTab ? 'oklch(0.65 0.15 75 / 0.2)' : (isBigMacTab ? 'rgba(218, 41, 28, 0.2)' : (isOilTab ? 'rgba(0, 0, 0, 0.2)' : 'oklch(0.55 0.18 145 / 0.2)')),
                     borderWidth: 3.5,
                     fill: true,
                     tension: 0.3,
@@ -3563,11 +3576,22 @@ function createNurseChart(tabNumber = 1) {
                             family: "'JetBrains Mono', monospace",
                             size: 11
                         },
-                        color: isGoldTab ? chartColors.gold : (isBigMacTab ? '#DA291C' : chartColors.nurse),
+                        color: isGoldTab ? chartColors.gold : (isBigMacTab ? '#DA291C' : (isOilTab ? '#000000' : chartColors.nurse)),
                         callback: function(value) {
                             return value.toFixed(0) + ' ' + yAxisLabel;
                         }
-                    }
+                    },
+                    ...(isOilTab ? {
+                        // For oil tab: set max to highest value + 5000 fat
+                        max: (() => {
+                            const validIndices = indexAll.filter(n => n.index !== null && n.index > 0).map(n => n.index);
+                            if (validIndices.length > 0) {
+                                const maxValue = Math.max(...validIndices);
+                                return maxValue + 5000;
+                            }
+                            return undefined;
+                        })()
+                    } : {})
                 }
             },
             plugins: {
@@ -3583,12 +3607,14 @@ function createNurseChart(tabNumber = 1) {
                                 if (context.parsed && !isNaN(context.parsed.y)) {
                                     const point = indexAll[context.dataIndex];
                                     if (point) {
-                                        // Format gold price as USD, nurse salary and BigMac price as NOK
+                                        // Format gold price as USD, nurse salary, BigMac price and oil price as NOK
                                         const referenceLabel = isGoldTab 
                                             ? point.goldPrice.toFixed(0) + ' USD'
                                             : (isBigMacTab 
                                                 ? point.bigMacPrice.toFixed(2) + ' NOK'
-                                                : formatCurrency(point.referenceValue));
+                                                : (isOilTab
+                                                    ? point.oilPrice.toFixed(2) + ' USD'
+                                                    : formatCurrency(point.referenceValue)));
                                         return [
                                             'Indeks: ' + context.parsed.y.toFixed(1) + ' ' + tooltipUnit,
                                             'Portefølje: ' + formatCurrency(point.value),
@@ -3612,7 +3638,7 @@ function createNurseChart(tabNumber = 1) {
     const startData = filteredData[0];
     let startReferenceValue = 0;
     
-    // Get start reference value (salary for tab 1, gold price for tab 2, BigMac price for tab 4)
+    // Get start reference value (salary for tab 1, gold price for tab 2, BigMac price for tab 4, oil price for tab 5)
     if (isGoldTab) {
         // Try filteredData first
         if (startData && startData.goldPrice) {
@@ -3650,6 +3676,27 @@ function createNurseChart(tabNumber = 1) {
         if (startReferenceValue === 0) {
             startReferenceValue = 34.00;
         }
+    } else if (isOilTab) {
+        // For Oil, use price from start date of filtered period
+        // Try filteredData first
+        if (startData && startData.oilPrice) {
+            startReferenceValue = parseFloat(startData.oilPrice);
+        }
+        // Try newValues as fallback
+        else if (newValues[0] && newValues[0].oilPrice) {
+            startReferenceValue = parseFloat(newValues[0].oilPrice);
+        }
+        // Try state.data as last resort
+        else if (state.data && state.data.length > 0) {
+            const matchingData = state.data.find(d => d.date && d.date.getTime() === startData.date.getTime());
+            if (matchingData && matchingData.oilPrice) {
+                startReferenceValue = parseFloat(matchingData.oilPrice);
+            }
+        }
+        // Fallback to 26.59 if no data found (shouldn't happen for periods with oil data)
+        if (startReferenceValue === 0) {
+            startReferenceValue = 26.59;
+        }
     } else {
         // Try filteredData first
         if (startData && startData.nurseSalary) {
@@ -3682,6 +3729,15 @@ function createNurseChart(tabNumber = 1) {
             endReferenceValue = parseFloat(newValues[newValues.length - 1].bigMacPrice);
         } else {
             endReferenceValue = 79.00; // Fallback to 2025 price
+        }
+    } else if (isOilTab) {
+        // For Oil, use price from end date of filtered period, or 63.10 as fallback
+        if (endData && endData.oilPrice) {
+            endReferenceValue = parseFloat(endData.oilPrice);
+        } else if (newValues.length > 0 && newValues[newValues.length - 1].oilPrice) {
+            endReferenceValue = parseFloat(newValues[newValues.length - 1].oilPrice);
+        } else {
+            endReferenceValue = 63.10; // Fallback to 2025 price
         }
     } else {
         endReferenceValue = 700000; // Hardcoded current salary
@@ -3759,6 +3815,33 @@ function createNurseChart(tabNumber = 1) {
         
         const endSublabelEl = document.getElementById('nurse-end-sublabel');
         if (endSublabelEl) endSublabelEl.textContent = 'USD';
+    } else if (isOilTab) {
+        // Update labels for oil tab
+        const firstLabelEl = document.getElementById('nurse-index-first-label');
+        if (firstLabelEl) firstLabelEl.textContent = 'Antall fat olje første år';
+        
+        const tenYearsLabelEl = document.getElementById('nurse-index-10-years-label');
+        if (tenYearsLabelEl) tenYearsLabelEl.textContent = 'Laveste og høyeste pris på olje';
+        
+        const lastLabelEl = document.getElementById('nurse-index-last-label');
+        if (lastLabelEl) lastLabelEl.textContent = 'Antall fat olje siste år';
+        
+        // Update sublabels
+        const firstSublabelEl = document.getElementById('nurse-index-first-sublabel');
+        if (firstSublabelEl) firstSublabelEl.textContent = 'fat';
+        
+        const tenYearsSublabelEl = document.getElementById('nurse-index-10-years-sublabel');
+        if (tenYearsSublabelEl) tenYearsSublabelEl.textContent = 'USD';
+        
+        const lastSublabelEl = document.getElementById('nurse-index-last-sublabel');
+        if (lastSublabelEl) lastSublabelEl.textContent = 'fat';
+        
+        // Update start/end value sublabels (assuming oil price is in USD)
+        const startSublabelEl = document.getElementById('nurse-start-sublabel');
+        if (startSublabelEl) startSublabelEl.textContent = 'USD';
+        
+        const endSublabelEl = document.getElementById('nurse-end-sublabel');
+        if (endSublabelEl) endSublabelEl.textContent = 'USD';
     } else {
         // Update labels for nurse tab
         const firstLabelEl = document.getElementById('nurse-index-first-label');
@@ -3791,7 +3874,7 @@ function createNurseChart(tabNumber = 1) {
     // Update start value label
     const startLabelEl = document.getElementById('nurse-start-label');
     if (startLabelEl) {
-        if (isBigMacTab) {
+        if (isBigMacTab || isOilTab) {
             // Show the actual start date for the filtered period
             const startDate = startData && startData.date ? startData.date : new Date(startYear, 0, 1);
             const day = String(startDate.getDate()).padStart(2, '0');
@@ -3807,8 +3890,8 @@ function createNurseChart(tabNumber = 1) {
     const nurseStartEl = document.getElementById('nurse-start');
     if (nurseStartEl) {
         if (startReferenceValue > 0) {
-            if (isBigMacTab) {
-                // For BigMac, show with 2 decimals
+            if (isBigMacTab || isOilTab) {
+                // For BigMac and Oil, show with 2 decimals
                 nurseStartEl.textContent = startReferenceValue.toFixed(2);
             } else {
                 nurseStartEl.textContent = startReferenceValue.toLocaleString('no-NO', { maximumFractionDigits: 0 });
@@ -3823,9 +3906,9 @@ function createNurseChart(tabNumber = 1) {
     const endLabelEl = document.getElementById('nurse-end-label');
     if (nurseEndEl) {
         if (endReferenceValue > 0) {
-            if (isBigMacTab) {
-                // For BigMac, show as integer (79)
-                nurseEndEl.textContent = Math.round(endReferenceValue);
+            if (isBigMacTab || isOilTab) {
+                // For BigMac and Oil, show with 2 decimals
+                nurseEndEl.textContent = endReferenceValue.toFixed(2);
                 if (endLabelEl) endLabelEl.textContent = 'Sluttverdi (i dag)';
             } else {
                 nurseEndEl.textContent = endReferenceValue.toLocaleString('no-NO', { maximumFractionDigits: 0 });
@@ -3846,28 +3929,34 @@ function createNurseChart(tabNumber = 1) {
     }
     
     // Calculate and update index values (from yearly data - January 1st of each year)
-    // First year
-    if (indexYearly.length > 0) {
-        const firstYearIndex = indexYearly[0].index;
+    // First year - use first valid index from indexAll (all data points)
+    const validIndices = indexAll.filter(v => v.index !== null && v.index > 0);
+    if (validIndices.length > 0) {
+        const firstIndexData = validIndices[0];
+        const lastIndexData = validIndices[validIndices.length - 1];
+        
+        const firstYearIndex = firstIndexData.index;
+        const lastYearIndex = lastIndexData.index;
+        
         const firstYearEl = document.getElementById('nurse-index-first');
         if (firstYearEl) {
             firstYearEl.textContent = firstYearIndex.toFixed(1);
         }
-    }
-    
-    // Last year
-    if (indexYearly.length > 0) {
-        const firstYearIndex = indexYearly[0].index;
-        const lastYearIndex = indexYearly[indexYearly.length - 1].index;
+        
         const lastYearEl = document.getElementById('nurse-index-last');
         if (lastYearEl) {
             lastYearEl.textContent = lastYearIndex.toFixed(1);
         }
         
         // Calculate growth percentage and annual growth (CAGR)
+        // Use actual first and last dates from all data points, not just yearly filtered
         if (firstYearIndex > 0 && lastYearIndex > 0) {
             const totalGrowth = ((lastYearIndex / firstYearIndex) - 1) * 100;
-            const numYears = indexYearly.length - 1; // Number of years between first and last
+            // Calculate actual number of years between first and last data point
+            const firstDate = firstIndexData.date;
+            const lastDate = lastIndexData.date;
+            const actualYearsDiff = (lastDate - firstDate) / (1000 * 60 * 60 * 24 * 365.25);
+            const numYears = Math.max(1, actualYearsDiff); // At least 1 year
             const annualGrowth = numYears > 0 
                 ? ((Math.pow(lastYearIndex / firstYearIndex, 1 / numYears) - 1) * 100)
                 : 0;
@@ -3891,19 +3980,29 @@ function createNurseChart(tabNumber = 1) {
         }
     }
     
-    // 10 years before last
-    if (indexYearly.length > 10) {
-        const index10YearsAgo = indexYearly[indexYearly.length - 11].index;
-        const tenYearsAgoEl = document.getElementById('nurse-index-10-years-ago');
-        if (tenYearsAgoEl) {
-            tenYearsAgoEl.textContent = index10YearsAgo.toFixed(1);
+    // Min and max oil prices in the period (only for oil tab)
+    if (isOilTab) {
+        const validOilPrices = indexAll.filter(v => v.oilPrice !== null && v.oilPrice > 0).map(v => v.oilPrice);
+        if (validOilPrices.length > 0) {
+            const minOilPrice = Math.min(...validOilPrices);
+            const maxOilPrice = Math.max(...validOilPrices);
+            const tenYearsAgoEl = document.getElementById('nurse-index-10-years-ago');
+            if (tenYearsAgoEl) {
+                // Show min and max oil prices: "X - Y USD"
+                tenYearsAgoEl.textContent = `${minOilPrice.toFixed(2)} - ${maxOilPrice.toFixed(2)}`;
+            }
         }
-    } else if (indexYearly.length > 0) {
-        // If less than 10 years of data, show the first year instead
-        const firstYearIndex = indexYearly[0].index;
-        const tenYearsAgoEl = document.getElementById('nurse-index-10-years-ago');
-        if (tenYearsAgoEl) {
-            tenYearsAgoEl.textContent = firstYearIndex.toFixed(1);
+    } else {
+        // For other tabs, show min and max observations
+        const validIndicesForMinMax = indexAll.filter(v => v.index !== null && v.index > 0);
+        if (validIndicesForMinMax.length > 0) {
+            const indexValues = validIndicesForMinMax.map(v => v.index);
+            const minIndex = Math.min(...indexValues);
+            const maxIndex = Math.max(...indexValues);
+            const tenYearsAgoEl = document.getElementById('nurse-index-10-years-ago');
+            if (tenYearsAgoEl) {
+                tenYearsAgoEl.textContent = `${minIndex.toFixed(1)} - ${maxIndex.toFixed(1)}`;
+            }
         }
     }
 }
@@ -4685,11 +4784,13 @@ function setupEventListeners() {
             const canvas2 = document.getElementById('nurse-chart-2');
             const canvas3 = document.getElementById('nurse-chart-3');
             const canvas4 = document.getElementById('nurse-chart-4');
-            if (canvas1 && canvas2 && canvas3 && canvas4) {
+            const canvas5 = document.getElementById('nurse-chart-5');
+            if (canvas1 && canvas2 && canvas3 && canvas4 && canvas5) {
                 canvas1.style.display = tabNumber === 1 ? 'block' : 'none';
                 canvas2.style.display = tabNumber === 2 ? 'block' : 'none';
                 canvas3.style.display = tabNumber === 3 ? 'block' : 'none';
                 canvas4.style.display = tabNumber === 4 ? 'block' : 'none';
+                canvas5.style.display = tabNumber === 5 ? 'block' : 'none';
             }
             
             // Create/update chart for selected tab
