@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+        <!DOCTYPE html>
 <html lang="no">
 <head>
     <meta charset="UTF-8">
@@ -31,11 +31,11 @@
                 <div class="header-info">
                     <div class="info-badge">
                         <span class="badge-label">Startkapital</span>
-                        <span class="badge-value">10 MNOK</span>
+                        <span class="badge-value" id="start-capital-display">10 MNOK</span>
                     </div>
                     <div class="info-badge">
                         <span class="badge-label">Periode</span>
-                        <span class="badge-value" id="period-display">2001 - 2025</span>
+                        <span class="badge-value" id="period-display">1994 - 2015</span>
                     </div>
                     <button class="disclaimer-btn" id="disclaimer-btn">Disclaimer</button>
                     <button class="historical-kpi-btn" id="historical-kpi-btn">Historisk KPI</button>
@@ -83,6 +83,13 @@
                     <line x1="8" y1="20" x2="16" y2="20"/>
                 </svg>
                 <span>Kjøpekraft</span>
+            </button>
+            <button class="tab-btn" data-tab="pyramid">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 22h20L12 2z"/>
+                    <path d="M12 6v4M12 14h.01"/>
+                </svg>
+                <span>Pyramide</span>
             </button>
             <button class="tab-btn" data-tab="assets">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -640,6 +647,13 @@
                             </svg>
                             Oljepris Brent
                         </button>
+                        <button class="selector-btn" data-nurse-tab="6" id="nurse-tab-6">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px;">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                <polyline points="9 22 9 12 15 12 15 22"/>
+                            </svg>
+                            M2 Oslo
+                        </button>
                     </div>
                 </div>
                 <div class="chart-wrapper large">
@@ -648,6 +662,7 @@
                     <canvas id="nurse-chart-3" style="display: none;"></canvas>
                     <canvas id="nurse-chart-4" style="display: none;"></canvas>
                     <canvas id="nurse-chart-5" style="display: none;"></canvas>
+                    <canvas id="nurse-chart-6" style="display: none;"></canvas>
                 </div>
                 <div class="nurse-info">
                     <div class="info-card">
@@ -696,8 +711,10 @@
                         </div>
                         <div class="info-content">
                             <span class="info-label" id="nurse-index-first-label">Antall sykepleier årslønner første år</span>
-                            <span class="info-value" id="nurse-index-first">-</span>
-                            <span class="info-sublabel" id="nurse-index-first-sublabel">årslønner</span>
+                            <div class="info-value-group">
+                                <span class="info-value" id="nurse-index-first">-</span>
+                                <span class="info-sublabel" id="nurse-index-first-sublabel">årslønner</span>
+                            </div>
                         </div>
                     </div>
                     <div class="info-card">
@@ -707,9 +724,11 @@
                             </svg>
                         </div>
                         <div class="info-content">
-                            <span class="info-label" id="nurse-index-10-years-label">Antall sykepleier årslønner 10 år før siste dato</span>
-                            <span class="info-value" id="nurse-index-10-years-ago">-</span>
-                            <span class="info-sublabel" id="nurse-index-10-years-sublabel">årslønner</span>
+                            <span class="info-label" id="nurse-index-10-years-label">Laveste observasjon</span>
+                            <div class="info-value-group">
+                                <span class="info-value" id="nurse-index-10-years-ago">-</span>
+                                <span class="info-sublabel" id="nurse-index-10-years-sublabel"></span>
+                            </div>
                         </div>
                     </div>
                     <div class="info-card">
@@ -731,6 +750,41 @@
                                 </span>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Pyramide -->
+            <section class="tab-content" id="tab-pyramid">
+                <div class="pyramid-controls" style="margin-bottom: var(--space-md);">
+                    <div class="portfolio-selector">
+                        <button class="selector-btn active" data-pyramid-portfolio="new" id="pyramid-portfolio-new">Ny Portefølje</button>
+                        <button class="selector-btn" data-pyramid-portfolio="current" id="pyramid-portfolio-current">Dagens Portefølje</button>
+                    </div>
+                </div>
+                <div class="pyramid-chart-container" id="pyramid-chart-container">
+                    <!-- Chart will be rendered here -->
+                </div>
+                <div class="pyramid-stats" style="margin-top: var(--space-md);">
+                    <div class="stat-item">
+                        <span class="stat-label">Gjennomsnitt:</span>
+                        <span class="stat-value" id="pyramid-mean">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Standardavvik:</span>
+                        <span class="stat-value" id="pyramid-stddev">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Det intervallet vi har flest av:</span>
+                        <span class="stat-value" id="pyramid-most-frequent">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Dårligste år:</span>
+                        <span class="stat-value" id="pyramid-worst-year">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Beste år:</span>
+                        <span class="stat-value" id="pyramid-best-year">-</span>
                     </div>
                 </div>
             </section>

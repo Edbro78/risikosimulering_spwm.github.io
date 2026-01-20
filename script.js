@@ -54,6 +54,9 @@ const state = {
     selectedAssetClass: null // Selected asset class for filtering (null = no filter)
 };
 
+// Make state globally available for testing
+window.state = state;
+
 // ========================================
 // CSV Data (Embedded for CORS compatibility)
 // ========================================
@@ -199,9 +202,10 @@ function parseCSV(csvString) {
             if (!value) return; // Skip empty values
             
             value = value.trim();
+            const headerLower = header.toLowerCase().trim();
             
             // Handle date parsing - support both DD.MM.YYYY and YYYY-MM-DD formats
-            if (header.toLowerCase() === 'dato') {
+            if (headerLower === 'dato') {
                 if (value.includes('.')) {
                     // DD.MM.YYYY format
                     const [day, month, year] = value.split('.');
@@ -232,15 +236,23 @@ function parseCSV(csvString) {
             } else if (header.toLowerCase().includes('gullprisen') || header.toLowerCase().includes('gullpris')) {
                 const numValue = value.replace(/\s/g, '').replace(',', '.');
                 row.goldPrice = parseFloat(numValue);
-            } else if (header.toLowerCase() === 'kpi') {
+            } else if (headerLower === 'kpi') {
                 const numValue = value.replace(/\s/g, '').replace(',', '.');
-                row.kpi = parseFloat(numValue);
+                const parsedKpi = parseFloat(numValue);
+                row.kpi = isNaN(parsedKpi) ? null : parsedKpi;
+                // Debug: Log first few KPI values
+                if (data.length < 3 && row.date && row.date.getFullYear() === 1994) {
+                    console.log('Parsed KPI:', { header: header, headerLower: headerLower, value: value, numValue: numValue, parsedKpi: parsedKpi, date: row.date });
+                }
             } else if (header.toLowerCase().includes('bigmac')) {
                 const numValue = value.replace(/\s/g, '').replace(',', '.');
                 row.bigMacPrice = parseFloat(numValue);
             } else if (header.toLowerCase().includes('oljepris brent') || header.toLowerCase().includes('oljepris')) {
                 const numValue = value.replace(/\s/g, '').replace(',', '.');
                 row.oilPrice = parseFloat(numValue);
+            } else if (header.toLowerCase().includes('m2 oslo')) {
+                const numValue = value.replace(/\s/g, '').replace(',', '.');
+                row.m2Oslo = parseFloat(numValue);
             }
         });
         
@@ -371,7 +383,8 @@ function calculatePortfolioValue(data, allocation, startCapital) {
             nurseSalary: row.nurseSalary,
             goldPrice: row.goldPrice,
             bigMacPrice: row.bigMacPrice,
-            oilPrice: row.oilPrice
+            oilPrice: row.oilPrice,
+            m2Oslo: row.m2Oslo
         });
     });
     
@@ -988,6 +1001,10 @@ function updateTreemapChart(type) {
     const rect = canvas.getBoundingClientRect();
     const displayWidth = rect.width;
     const displayHeight = rect.height;
+    
+    // If canvas has zero dimensions (tab is hidden), skip rendering
+    // This will be retried when the tab becomes visible
+    if (displayWidth === 0 || displayHeight === 0) return;
     
     // Set actual size in memory (scaled for DPI)
     canvas.width = displayWidth * dpr;
@@ -3415,6 +3432,28 @@ function createNurseChart(tabNumber = 1) {
     const isKPITab = tabNumber === 3;
     const isBigMacTab = tabNumber === 4;
     const isOilTab = tabNumber === 5;
+    const isM2OsloTab = tabNumber === 6;
+    
+    // Ensure canvas is visible before creating chart
+    if (canvas) {
+        canvas.style.display = 'block';
+        // Ensure parent wrapper is visible and has proper overflow settings
+        const wrapper = canvas.closest('.chart-wrapper');
+        if (wrapper) {
+            wrapper.style.overflowX = 'auto';
+            wrapper.style.overflowY = 'visible';
+            wrapper.style.display = 'block';
+            // Ensure wrapper has minimum height, especially for max period
+            if (state.selectedPeriod === 'max') {
+                wrapper.style.minHeight = '400px';
+                wrapper.style.height = 'auto';
+            }
+            // Force a reflow to ensure layout is calculated
+            wrapper.offsetHeight;
+        }
+        // Force a reflow to ensure canvas is visible
+        canvas.offsetHeight;
+    }
     
     // For tab 3 (Markedspremie), create stacked bar chart
     if (isKPITab) {
@@ -3422,8 +3461,40 @@ function createNurseChart(tabNumber = 1) {
         return;
     }
     
+    // Early return check - ensure we have data before proceeding
+    if (!filteredData || filteredData.length === 0) {
+        console.warn('No filtered data available for nurse chart');
+        // Ensure wrapper is still visible even with no data
+        if (canvas) {
+            const wrapper = canvas.closest('.chart-wrapper');
+            if (wrapper) {
+                wrapper.style.display = 'block';
+                wrapper.style.visibility = 'visible';
+                wrapper.style.opacity = '1';
+                wrapper.style.minHeight = '400px';
+            }
+        }
+        return;
+    }
+    
     // Calculate portfolio value for the filtered period, but normalize so it always starts at 10 MNOK
     const newValues = calculatePortfolioValue(filteredData, state.newPortfolio, state.startCapital);
+    
+    // Check if we have valid values
+    if (!newValues || newValues.length === 0) {
+        console.warn('No portfolio values calculated for nurse chart');
+        // Ensure wrapper is still visible even with no data
+        if (canvas) {
+            const wrapper = canvas.closest('.chart-wrapper');
+            if (wrapper) {
+                wrapper.style.display = 'block';
+                wrapper.style.visibility = 'visible';
+                wrapper.style.opacity = '1';
+                wrapper.style.minHeight = '400px';
+            }
+        }
+        return;
+    }
     
     // Normalize the portfolio values so the first value is always exactly 10 MNOK
     if (newValues.length > 0 && newValues[0].value !== state.startCapital) {
@@ -3472,6 +3543,16 @@ function createNurseChart(tabNumber = 1) {
                 // Skip data points without oil price (before 2001)
                 index = null;
             }
+        } else if (isM2OsloTab) {
+            // For M2 Oslo: portfolio value / m2 price = antall m2
+            // Only calculate if m2 price exists
+            referenceValue = v.m2Oslo || 0;
+            if (referenceValue > 0) {
+                index = v.value / referenceValue;
+            } else {
+                // Skip data points without m2 price
+                index = null;
+            }
         } else {
             // For nurse: portfolio value / nurse salary = årslønner
             referenceValue = v.nurseSalary || 0;
@@ -3486,14 +3567,15 @@ function createNurseChart(tabNumber = 1) {
             goldPrice: isGoldTab && v === lastValue ? 4336 : v.goldPrice,
             bigMacPrice: v.bigMacPrice,
             oilPrice: v.oilPrice,
+            m2Oslo: v.m2Oslo,
             index: index
         };
     });
     
     // Filter to only include January 1st of each year for display (smoother line), plus last data point
-    // For BigMac and Oil tabs, also filter out null values (data before 2001)
+    // For BigMac, Oil and M2 Oslo tabs, also filter out null values
     const indexYearly = indexAll.filter(v => {
-        if ((isBigMacTab || isOilTab) && v.index === null) return false; // Skip null values for BigMac and Oil
+        if ((isBigMacTab || isOilTab || isM2OsloTab) && v.index === null) return false; // Skip null values for BigMac, Oil and M2 Oslo
         const date = v.date;
         const isJan1 = date.getMonth() === 0 && date.getDate() === 1;
         const isLastPoint = v === indexAll[indexAll.length - 1];
@@ -3504,15 +3586,15 @@ function createNurseChart(tabNumber = 1) {
     const portfolioData = newValues.map(v => ({ x: v.date, y: v.value }));
     
     // Destroy existing chart for this tab
-    const chartKey = tabNumber === 1 ? 'nurse1' : (tabNumber === 2 ? 'nurse2' : (tabNumber === 3 ? 'nurse3' : (tabNumber === 4 ? 'nurse4' : 'nurse5')));
+    const chartKey = tabNumber === 1 ? 'nurse1' : (tabNumber === 2 ? 'nurse2' : (tabNumber === 3 ? 'nurse3' : (tabNumber === 4 ? 'nurse4' : (tabNumber === 5 ? 'nurse5' : 'nurse6'))));
     if (state.charts[chartKey]) {
         state.charts[chartKey].destroy();
     }
     
-    const indexLabel = isGoldTab ? 'Gullprisindeks (unser)' : (isBigMacTab ? 'BigMac-indeksen (antall)' : (isOilTab ? 'Oljepris Brent-indeksen (antall fat)' : 'Sykepleierindeks (årslønner)'));
-    const yAxisLabel = isGoldTab ? 'unser' : (isBigMacTab ? 'antall' : (isOilTab ? 'antall fat' : 'årslønner'));
-    const tooltipUnit = isGoldTab ? 'unser' : (isBigMacTab ? 'antall' : (isOilTab ? 'antall fat' : 'årslønner'));
-    const tooltipReferenceLabel = isGoldTab ? 'Gullpris' : (isBigMacTab ? 'BigMac-pris' : (isOilTab ? 'Oljepris' : 'Lønn'));
+    const indexLabel = isGoldTab ? 'Gullprisindeks (unser)' : (isBigMacTab ? 'BigMac-indeksen (antall)' : (isOilTab ? 'Oljepris Brent-indeksen (antall fat)' : (isM2OsloTab ? 'M2 Oslo-indeksen (antall m²)' : 'Sykepleierindeks (årslønner)')));
+    const yAxisLabel = isGoldTab ? 'unser' : (isBigMacTab ? 'antall' : (isOilTab ? 'antall fat' : (isM2OsloTab ? 'antall m²' : 'årslønner')));
+    const tooltipUnit = isGoldTab ? 'unser' : (isBigMacTab ? 'antall' : (isOilTab ? 'antall fat' : (isM2OsloTab ? 'antall m²' : 'årslønner')));
+    const tooltipReferenceLabel = isGoldTab ? 'Gullpris' : (isBigMacTab ? 'BigMac-pris' : (isOilTab ? 'Oljepris' : (isM2OsloTab ? 'M2-pris' : 'Lønn')));
     
     state.charts[chartKey] = new Chart(ctx, {
         type: 'line',
@@ -3531,8 +3613,8 @@ function createNurseChart(tabNumber = 1) {
                 {
                     label: indexLabel,
                     data: indexAll.filter(n => n.index !== null && n.index > 0).map(n => ({ x: n.date, y: n.index })),
-                    borderColor: isGoldTab ? chartColors.gold : (isBigMacTab ? '#DA291C' : (isOilTab ? '#000000' : chartColors.nurse)),
-                    backgroundColor: isGoldTab ? 'oklch(0.65 0.15 75 / 0.2)' : (isBigMacTab ? 'rgba(218, 41, 28, 0.2)' : (isOilTab ? 'rgba(0, 0, 0, 0.2)' : 'oklch(0.55 0.18 145 / 0.2)')),
+                    borderColor: isGoldTab ? chartColors.gold : (isBigMacTab ? '#DA291C' : (isOilTab ? '#000000' : (isM2OsloTab ? '#808080' : chartColors.nurse))),
+                    backgroundColor: isGoldTab ? 'oklch(0.65 0.15 75 / 0.2)' : (isBigMacTab ? 'rgba(218, 41, 28, 0.2)' : (isOilTab ? 'rgba(0, 0, 0, 0.2)' : (isM2OsloTab ? 'rgba(128, 128, 128, 0.2)' : 'oklch(0.55 0.18 145 / 0.2)'))),
                     borderWidth: 3.5,
                     fill: true,
                     tension: 0.3,
@@ -3576,7 +3658,7 @@ function createNurseChart(tabNumber = 1) {
                             family: "'JetBrains Mono', monospace",
                             size: 11
                         },
-                        color: isGoldTab ? chartColors.gold : (isBigMacTab ? '#DA291C' : (isOilTab ? '#000000' : chartColors.nurse)),
+                        color: isGoldTab ? chartColors.gold : (isBigMacTab ? '#DA291C' : (isOilTab ? '#000000' : (isM2OsloTab ? '#808080' : chartColors.nurse))),
                         callback: function(value) {
                             return value.toFixed(0) + ' ' + yAxisLabel;
                         }
@@ -3591,7 +3673,17 @@ function createNurseChart(tabNumber = 1) {
                             }
                             return undefined;
                         })()
-                    } : {})
+                    } : (isM2OsloTab ? {
+                        // For M2 Oslo tab: set max to highest value + 50 m²
+                        max: (() => {
+                            const validIndices = indexAll.filter(n => n.index !== null && n.index > 0).map(n => n.index);
+                            if (validIndices.length > 0) {
+                                const maxValue = Math.max(...validIndices);
+                                return maxValue + 50;
+                            }
+                            return undefined;
+                        })()
+                    } : {}))
                 }
             },
             plugins: {
@@ -3614,7 +3706,9 @@ function createNurseChart(tabNumber = 1) {
                                                 ? point.bigMacPrice.toFixed(2) + ' NOK'
                                                 : (isOilTab
                                                     ? point.oilPrice.toFixed(2) + ' USD'
-                                                    : formatCurrency(point.referenceValue)));
+                                                    : (isM2OsloTab
+                                                        ? point.m2Oslo.toFixed(0) + ' kr/m²'
+                                                        : formatCurrency(point.referenceValue))));
                                         return [
                                             'Indeks: ' + context.parsed.y.toFixed(1) + ' ' + tooltipUnit,
                                             'Portefølje: ' + formatCurrency(point.value),
@@ -3632,8 +3726,56 @@ function createNurseChart(tabNumber = 1) {
         }
     });
     
+    // Ensure wrapper remains visible after chart creation, especially for max period
+    if (canvas) {
+        const wrapper = canvas.closest('.chart-wrapper');
+        if (wrapper) {
+            // Always ensure wrapper is visible
+            wrapper.style.display = 'block';
+            wrapper.style.visibility = 'visible';
+            wrapper.style.opacity = '1';
+            wrapper.style.position = 'relative';
+            // Ensure wrapper has minimum height, especially for max period
+            if (state.selectedPeriod === 'max') {
+                wrapper.style.minHeight = '400px';
+                wrapper.style.height = 'auto';
+            } else {
+                // Ensure min-height is set even for other periods
+                wrapper.style.minHeight = '400px';
+            }
+            // Ensure wrapper doesn't collapse
+            wrapper.style.flexShrink = '0';
+            // Force a reflow to ensure layout is updated
+            wrapper.offsetHeight;
+            // Double-check visibility after a short delay
+            setTimeout(() => {
+                if (wrapper) {
+                    wrapper.style.display = 'block';
+                    wrapper.style.visibility = 'visible';
+                    wrapper.style.opacity = '1';
+                }
+            }, 100);
+        }
+        // Ensure canvas is visible
+        canvas.style.display = 'block';
+        canvas.style.visibility = 'visible';
+        canvas.style.opacity = '1';
+    }
+    
     // Update info cards
-    if (newValues.length === 0 || filteredData.length === 0) return;
+    if (newValues.length === 0 || filteredData.length === 0) {
+        // Even if no data, ensure wrapper is visible
+        if (canvas) {
+            const wrapper = canvas.closest('.chart-wrapper');
+            if (wrapper) {
+                wrapper.style.display = 'block';
+                wrapper.style.visibility = 'visible';
+                wrapper.style.opacity = '1';
+                wrapper.style.minHeight = '400px';
+            }
+        }
+        return;
+    }
     
     const startData = filteredData[0];
     let startReferenceValue = 0;
@@ -3697,6 +3839,27 @@ function createNurseChart(tabNumber = 1) {
         if (startReferenceValue === 0) {
             startReferenceValue = 26.59;
         }
+    } else if (isM2OsloTab) {
+        // For M2 Oslo, use price from start date of filtered period
+        // Try filteredData first
+        if (startData && startData.m2Oslo) {
+            startReferenceValue = parseFloat(startData.m2Oslo);
+        }
+        // Try newValues as fallback
+        else if (newValues[0] && newValues[0].m2Oslo) {
+            startReferenceValue = parseFloat(newValues[0].m2Oslo);
+        }
+        // Try state.data as last resort
+        else if (state.data && state.data.length > 0) {
+            const matchingData = state.data.find(d => d.date && d.date.getTime() === startData.date.getTime());
+            if (matchingData && matchingData.m2Oslo) {
+                startReferenceValue = parseFloat(matchingData.m2Oslo);
+            }
+        }
+        // Fallback to 7500 if no data found (first year 1994)
+        if (startReferenceValue === 0) {
+            startReferenceValue = 7500;
+        }
     } else {
         // Try filteredData first
         if (startData && startData.nurseSalary) {
@@ -3739,6 +3902,15 @@ function createNurseChart(tabNumber = 1) {
         } else {
             endReferenceValue = 63.10; // Fallback to 2025 price
         }
+    } else if (isM2OsloTab) {
+        // For M2 Oslo, use price from end date of filtered period, or 101000 as fallback
+        if (endData && endData.m2Oslo) {
+            endReferenceValue = parseFloat(endData.m2Oslo);
+        } else if (newValues.length > 0 && newValues[newValues.length - 1].m2Oslo) {
+            endReferenceValue = parseFloat(newValues[newValues.length - 1].m2Oslo);
+        } else {
+            endReferenceValue = 101000; // Fallback to 2025 price
+        }
     } else {
         endReferenceValue = 700000; // Hardcoded current salary
     }
@@ -3761,13 +3933,40 @@ function createNurseChart(tabNumber = 1) {
     if (isKPITab) {
         // Labels for KPI tab are updated in updateKPIInfoCards
         // Skip label updates here
+    } else if (isM2OsloTab) {
+        // Update labels for M2 Oslo tab
+        const firstLabelEl = document.getElementById('nurse-index-first-label');
+        if (firstLabelEl) firstLabelEl.textContent = 'Antall m² i Oslo første år';
+        
+        const tenYearsLabelEl = document.getElementById('nurse-index-10-years-label');
+        if (tenYearsLabelEl) tenYearsLabelEl.textContent = 'Laveste observasjon';
+        
+        const lastLabelEl = document.getElementById('nurse-index-last-label');
+        if (lastLabelEl) lastLabelEl.textContent = 'Antall m² i Oslo siste år';
+        
+        // Update sublabels
+        const firstSublabelEl = document.getElementById('nurse-index-first-sublabel');
+        if (firstSublabelEl) firstSublabelEl.textContent = 'm²';
+        
+        const tenYearsSublabelEl = document.getElementById('nurse-index-10-years-sublabel');
+        if (tenYearsSublabelEl) tenYearsSublabelEl.textContent = 'm²';
+        
+        const lastSublabelEl = document.getElementById('nurse-index-last-sublabel');
+        if (lastSublabelEl) lastSublabelEl.textContent = 'm²';
+        
+        // Update start/end value sublabels
+        const startSublabelEl = document.getElementById('nurse-start-sublabel');
+        if (startSublabelEl) startSublabelEl.textContent = 'kr/m²';
+        
+        const endSublabelEl = document.getElementById('nurse-end-sublabel');
+        if (endSublabelEl) endSublabelEl.textContent = 'kr/m²';
     } else if (isBigMacTab) {
         // Update labels for BigMac tab
         const firstLabelEl = document.getElementById('nurse-index-first-label');
         if (firstLabelEl) firstLabelEl.textContent = 'Antall BigMac første år';
         
         const tenYearsLabelEl = document.getElementById('nurse-index-10-years-label');
-        if (tenYearsLabelEl) tenYearsLabelEl.textContent = 'Antall BigMac 10 år før siste dato';
+        if (tenYearsLabelEl) tenYearsLabelEl.textContent = 'Laveste observasjon';
         
         const lastLabelEl = document.getElementById('nurse-index-last-label');
         if (lastLabelEl) lastLabelEl.textContent = 'Antall BigMac siste år';
@@ -3794,7 +3993,7 @@ function createNurseChart(tabNumber = 1) {
         if (firstLabelEl) firstLabelEl.textContent = 'Antall unser gull første år';
         
         const tenYearsLabelEl = document.getElementById('nurse-index-10-years-label');
-        if (tenYearsLabelEl) tenYearsLabelEl.textContent = 'Antall unser gull 10 år før siste dato';
+        if (tenYearsLabelEl) tenYearsLabelEl.textContent = 'Laveste observasjon';
         
         const lastLabelEl = document.getElementById('nurse-index-last-label');
         if (lastLabelEl) lastLabelEl.textContent = 'Antall unser gull siste år';
@@ -3848,7 +4047,7 @@ function createNurseChart(tabNumber = 1) {
         if (firstLabelEl) firstLabelEl.textContent = 'Antall sykepleier årslønner første år';
         
         const tenYearsLabelEl = document.getElementById('nurse-index-10-years-label');
-        if (tenYearsLabelEl) tenYearsLabelEl.textContent = 'Antall sykepleier årslønner 10 år før siste dato';
+        if (tenYearsLabelEl) tenYearsLabelEl.textContent = 'Laveste observasjon';
         
         const lastLabelEl = document.getElementById('nurse-index-last-label');
         if (lastLabelEl) lastLabelEl.textContent = 'Antall sykepleier årslønner siste år';
@@ -3874,7 +4073,7 @@ function createNurseChart(tabNumber = 1) {
     // Update start value label
     const startLabelEl = document.getElementById('nurse-start-label');
     if (startLabelEl) {
-        if (isBigMacTab || isOilTab) {
+        if (isBigMacTab || isOilTab || isM2OsloTab) {
             // Show the actual start date for the filtered period
             const startDate = startData && startData.date ? startData.date : new Date(startYear, 0, 1);
             const day = String(startDate.getDate()).padStart(2, '0');
@@ -3893,6 +4092,9 @@ function createNurseChart(tabNumber = 1) {
             if (isBigMacTab || isOilTab) {
                 // For BigMac and Oil, show with 2 decimals
                 nurseStartEl.textContent = startReferenceValue.toFixed(2);
+            } else if (isM2OsloTab) {
+                // For M2 Oslo, show as integer with space separator
+                nurseStartEl.textContent = startReferenceValue.toLocaleString('no-NO', { maximumFractionDigits: 0 });
             } else {
                 nurseStartEl.textContent = startReferenceValue.toLocaleString('no-NO', { maximumFractionDigits: 0 });
             }
@@ -3910,6 +4112,9 @@ function createNurseChart(tabNumber = 1) {
                 // For BigMac and Oil, show with 2 decimals
                 nurseEndEl.textContent = endReferenceValue.toFixed(2);
                 if (endLabelEl) endLabelEl.textContent = 'Sluttverdi (i dag)';
+            } else if (isM2OsloTab) {
+                // For M2 Oslo, show as integer with space separator
+                nurseEndEl.textContent = endReferenceValue.toLocaleString('no-NO', { maximumFractionDigits: 0 });
             } else {
                 nurseEndEl.textContent = endReferenceValue.toLocaleString('no-NO', { maximumFractionDigits: 0 });
             }
@@ -3992,19 +4197,285 @@ function createNurseChart(tabNumber = 1) {
                 tenYearsAgoEl.textContent = `${minOilPrice.toFixed(2)} - ${maxOilPrice.toFixed(2)}`;
             }
         }
-    } else {
-        // For other tabs, show min and max observations
+    } else if (isM2OsloTab) {
+        // For M2 Oslo tab, show lowest observation with year (same format as other tabs)
         const validIndicesForMinMax = indexAll.filter(v => v.index !== null && v.index > 0);
         if (validIndicesForMinMax.length > 0) {
-            const indexValues = validIndicesForMinMax.map(v => v.index);
-            const minIndex = Math.min(...indexValues);
-            const maxIndex = Math.max(...indexValues);
+            // Find the entry with the minimum index value
+            const minEntry = validIndicesForMinMax.reduce((min, current) => 
+                current.index < min.index ? current : min
+            );
+            const minIndex = minEntry.index;
+            const minYear = minEntry.date.getFullYear();
+            
             const tenYearsAgoEl = document.getElementById('nurse-index-10-years-ago');
+            const tenYearsSublabelEl = document.getElementById('nurse-index-10-years-sublabel');
             if (tenYearsAgoEl) {
-                tenYearsAgoEl.textContent = `${minIndex.toFixed(1)} - ${maxIndex.toFixed(1)}`;
+                // Format: "355.4 m² 2002"
+                tenYearsAgoEl.textContent = `${minIndex.toFixed(1)} m² ${minYear}`;
+            }
+            if (tenYearsSublabelEl) {
+                tenYearsSublabelEl.textContent = ''; // Clear sublabel since year is now in main value
+            }
+        }
+    } else {
+        // For other tabs (including nurse and gold), show lowest observation with year
+        const validIndicesForMinMax = indexAll.filter(v => v.index !== null && v.index > 0);
+        if (validIndicesForMinMax.length > 0) {
+            // Find the entry with the minimum index value
+            const minEntry = validIndicesForMinMax.reduce((min, current) => 
+                current.index < min.index ? current : min
+            );
+            const minIndex = minEntry.index;
+            const minYear = minEntry.date.getFullYear();
+            
+            // Determine unit based on tab type
+            const unit = isGoldTab ? 'unser' : (isBigMacTab ? 'antall' : 'årslønner');
+            
+            const tenYearsAgoEl = document.getElementById('nurse-index-10-years-ago');
+            const tenYearsSublabelEl = document.getElementById('nurse-index-10-years-sublabel');
+            if (tenYearsAgoEl) {
+                // Format: "28 årslønner 2013" or "10961 unser 2025" etc.
+                tenYearsAgoEl.textContent = `${minIndex.toFixed(0)} ${unit} ${minYear}`;
+            }
+            if (tenYearsSublabelEl) {
+                tenYearsSublabelEl.textContent = ''; // Clear sublabel since year is now in main value
             }
         }
     }
+}
+
+// ========================================
+// Pyramid Chart (Return Distribution)
+// ========================================
+
+// Calculate yearly returns for a portfolio
+function calculateYearlyPortfolioReturns(portfolio) {
+    const filteredData = getFilteredData();
+    const yearlyData = [];
+    
+    // Group data by year
+    const byYear = {};
+    filteredData.forEach(row => {
+        const year = row.date.getFullYear();
+        if (!byYear[year]) {
+            byYear[year] = [];
+        }
+        byYear[year].push(row);
+    });
+    
+    // Calculate yearly return for each year
+    Object.keys(byYear).sort().forEach(year => {
+        const yearData = byYear[year];
+        if (yearData.length >= 2) {
+            // Calculate portfolio values for the year
+            const portfolioValues = calculatePortfolioValue(yearData, portfolio, state.startCapital);
+            if (portfolioValues.length >= 2) {
+                const startValue = portfolioValues[0].value;
+                const endValue = portfolioValues[portfolioValues.length - 1].value;
+                const yearlyReturn = ((endValue - startValue) / startValue) * 100;
+                yearlyData.push({
+                    year: parseInt(year),
+                    return: yearlyReturn
+                });
+            }
+        }
+    });
+    
+    return yearlyData;
+}
+
+// Calculate mean and standard deviation
+function calculateStats(data) {
+    if (data.length === 0) return { mean: 0, stddev: 0 };
+    
+    const returns = data.map(d => d.return);
+    const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+    const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
+    const stddev = Math.sqrt(variance);
+    
+    return { mean, stddev };
+}
+
+// Get color style based on return interval (using oklch colors similar to Tailwind rose/emerald)
+function getReturnColorStyle(returnValue) {
+    if (returnValue < -35) return 'background-color: oklch(0.35 0.15 15);'; // Dark red (rose-700)
+    if (returnValue < -25) return 'background-color: oklch(0.42 0.15 15);'; // Red (rose-600)
+    if (returnValue < -5) return 'background-color: oklch(0.65 0.15 15);'; // Light red (rose-400)
+    if (returnValue < 5) return 'background-color: oklch(0.80 0.12 150);'; // Light emerald (emerald-300)
+    if (returnValue < 15) return 'background-color: oklch(0.70 0.15 150);'; // Emerald (emerald-400)
+    if (returnValue < 25) return 'background-color: oklch(0.60 0.18 150);'; // Strong emerald (emerald-500)
+    if (returnValue < 35) return 'background-color: oklch(0.50 0.18 150);'; // Dark emerald (emerald-600)
+    return 'background-color: oklch(0.40 0.18 150);'; // Very dark emerald (emerald-700)
+}
+
+// Create pyramid chart
+function createPyramidChart() {
+    const container = document.getElementById('pyramid-chart-container');
+    if (!container) return;
+    
+    // Get selected portfolio
+    const portfolioBtn = document.querySelector('.pyramid-controls .selector-btn.active');
+    const portfolioType = portfolioBtn ? portfolioBtn.dataset.pyramidPortfolio : 'new';
+    const portfolio = portfolioType === 'new' ? state.newPortfolio : state.currentPortfolio;
+    
+    // Calculate yearly returns
+    const yearlyData = calculateYearlyPortfolioReturns(portfolio);
+    
+    if (yearlyData.length === 0) {
+        container.innerHTML = '<p>Ingen data tilgjengelig</p>';
+        return;
+    }
+    
+    // Calculate statistics
+    const stats = calculateStats(yearlyData);
+    
+    // Find best and worst year
+    const bestYear = yearlyData.reduce((best, current) => current.return > best.return ? current : best, yearlyData[0]);
+    const worstYear = yearlyData.reduce((worst, current) => current.return < worst.return ? current : worst, yearlyData[0]);
+    
+    // Create bins (intervals of 10%, centered on 0%)
+    // Bin structure: -45 to -35, -35 to -25, ..., -5 to 5 (center), 5 to 15, ..., 35 to 45
+    const bins = {};
+    const minBin = -45;
+    const maxBin = 45;
+    const binWidth = 10;
+    
+    // Initialize bins
+    for (let binStart = minBin; binStart < maxBin; binStart += binWidth) {
+        const binKey = `${binStart}-${binStart + binWidth}`;
+        bins[binKey] = {
+            start: binStart,
+            end: binStart + binWidth,
+            items: [],
+            count: 0
+        };
+    }
+    
+    // Assign data points to bins and count
+    yearlyData.forEach(item => {
+        const returnValue = item.return;
+        // Find which bin this return belongs to
+        for (let binStart = minBin; binStart < maxBin; binStart += binWidth) {
+            if (returnValue >= binStart && returnValue < binStart + binWidth) {
+                const binKey = `${binStart}-${binStart + binWidth}`;
+                bins[binKey].items.push(item);
+                bins[binKey].count++;
+                break;
+            }
+        }
+    });
+    
+    // Find bin with most items
+    const mostFrequentBin = Object.values(bins).reduce((max, bin) => bin.count > max.count ? bin : max, bins[Object.keys(bins)[0]]);
+    
+    // Update stats display
+    const meanEl = document.getElementById('pyramid-mean');
+    const stddevEl = document.getElementById('pyramid-stddev');
+    const mostFrequentEl = document.getElementById('pyramid-most-frequent');
+    const worstYearEl = document.getElementById('pyramid-worst-year');
+    const bestYearEl = document.getElementById('pyramid-best-year');
+    
+    if (meanEl) meanEl.textContent = stats.mean.toFixed(2) + '%';
+    if (stddevEl) stddevEl.textContent = stats.stddev.toFixed(2) + '%';
+    if (mostFrequentEl) mostFrequentEl.textContent = `${mostFrequentBin.start}% - ${mostFrequentBin.end}%`;
+    if (worstYearEl) worstYearEl.textContent = `${worstYear.year} (${worstYear.return.toFixed(2)}%)`;
+    if (bestYearEl) bestYearEl.textContent = `${bestYear.year} (${bestYear.return.toFixed(2)}%)`;
+    
+    // Sort items within each bin by return (highest first)
+    Object.keys(bins).forEach(binKey => {
+        bins[binKey].items.sort((a, b) => b.return - a.return);
+    });
+    
+    // Calculate static height based on maximum possible years in dataset
+    // Use all data (not filtered) to ensure consistent height regardless of period selection
+    const allYears = new Set();
+    state.data.forEach(row => {
+        allYears.add(row.date.getFullYear());
+    });
+    const maxPossibleYears = allYears.size;
+    
+    // Find current max height for this portfolio
+    const currentMaxHeight = Math.max(...Object.values(bins).map(bin => bin.items.length));
+    
+    // Calculate available container height (accounting for header, stats, padding, etc.)
+    // Get actual container dimensions instead of viewport
+    const containerRect = container.getBoundingClientRect();
+    const containerHeight = containerRect.height || container.offsetHeight;
+    
+    // Calculate optimal box height to fit all possible years within available space
+    const boxMargin = 1;
+    const xAxisLabelHeight = 30; // Space for x-axis labels
+    const topPadding = 20;
+    const bottomPadding = 20;
+    const containerPadding = 24; // var(--space-lg) typically 24px
+    
+    // Use container height minus padding and labels
+    const usableHeight = containerHeight - topPadding - bottomPadding - xAxisLabelHeight - (containerPadding * 2); // Account for container padding
+    
+    // Calculate box height: (usable height) / (max possible years + some margin)
+    const baseBoxHeight = Math.max(16, Math.min(22.8, Math.floor(usableHeight / (maxPossibleYears + 2))));
+    const boxHeight = baseBoxHeight * 1.1 * 1.1 * 1.2; // Increase height by 45.2% total (10% + 10% + 20%)
+    const totalBoxHeight = boxHeight + (boxMargin * 2);
+    
+    // Calculate static chart height to fit container without scrolling
+    // Use container height minus container padding
+    const staticChartHeight = Math.max(400, containerHeight - (containerPadding * 2));
+    
+    // Render chart with static height, x-axis at bottom
+    // Calculate the actual content height (chart height minus x-axis label space)
+    // Ensure x-axis is always visible by reserving space at the bottom
+    // Distance between x-axis and boxes should equal one box height
+    const xAxisSpace = xAxisLabelHeight + boxHeight; // Space for x-axis label + one box height
+    const contentHeight = staticChartHeight - xAxisSpace - bottomPadding;
+    
+    container.innerHTML = `
+        <div class="pyramid-chart" style="display: flex; align-items: flex-end; gap: 2px; height: ${staticChartHeight}px; padding: ${topPadding}px 20px ${xAxisSpace + bottomPadding}px 20px; border-bottom: 2px solid var(--border); position: relative; box-sizing: border-box;">
+            ${Object.keys(bins).map(binKey => {
+                const bin = bins[binKey];
+                
+                return `
+                    <div class="pyramid-bin" style="flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; height: 100%; justify-content: flex-end;">
+                        <!-- Boxes container - positioned above x-axis with clear separation (one box height) -->
+                        <div class="pyramid-stack" style="width: 100%; display: flex; flex-direction: column-reverse; align-items: center; justify-content: flex-end; min-height: 0; max-height: ${contentHeight}px; margin-bottom: ${xAxisSpace}px; overflow: hidden;">
+                            ${bin.items.map(item => {
+                                let colorStyle = getReturnColorStyle(item.return);
+                                // Special case: if in middle bin (-5 to 5) and return is negative, use red
+                                if (bin.start === -5 && item.return < 0) {
+                                    colorStyle = 'background-color: oklch(0.65 0.15 15);'; // Light red (rose-400)
+                                }
+                                
+                                return `
+                                    <div 
+                                        class="pyramid-box" 
+                                        style="width: 90%; height: ${boxHeight}px; margin: ${boxMargin}px 0; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: ${Math.max(8, boxHeight * 0.4 * 1.1 * 1.1 * 1.2)}px; font-weight: 500; color: white; cursor: pointer; position: relative; flex-shrink: 0; ${colorStyle}"
+                                        data-year="${item.year}"
+                                        data-return="${item.return.toFixed(2)}"
+                                        title="År: ${item.year}, Avkastning: ${item.return.toFixed(2)}%"
+                                    >
+                                        ${item.year}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        <!-- X-axis label - always at the bottom, fully visible -->
+                        <div class="pyramid-bin-label" style="position: absolute; bottom: ${bottomPadding}px; left: 0; right: 0; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-secondary); white-space: nowrap; text-align: center; width: 100%; height: ${xAxisLabelHeight}px; display: flex; align-items: center; justify-content: center; z-index: 10;">
+                            ${bin.start}% - ${bin.end}%
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+    
+    // Add tooltip functionality
+    container.querySelectorAll('.pyramid-box').forEach(box => {
+        box.addEventListener('mouseenter', function(e) {
+            const year = this.dataset.year;
+            const returnValue = this.dataset.return;
+            // Tooltip is already in title attribute, but we can enhance it
+        });
+    });
 }
 
 function createKPIStackedBarChart(ctx, tabNumber) {
@@ -4014,173 +4485,298 @@ function createKPIStackedBarChart(ctx, tabNumber) {
         state.charts[chartKey] = null;
     }
     
-    // Get filtered data to determine the period
-    const filteredData = getFilteredData();
-    
-    // Determine year range from filtered data
-    let minYear = 2001;
-    let maxYear = 2025;
-    if (filteredData.length > 0) {
-        minYear = filteredData[0].date.getFullYear();
-        maxYear = filteredData[filteredData.length - 1].date.getFullYear();
+    // Ensure canvas is visible before creating chart
+    const canvas = ctx.canvas;
+    if (canvas) {
+        canvas.style.display = 'block';
+        // Ensure parent wrapper is visible and has overflow auto
+        const wrapper = canvas.closest('.chart-wrapper');
+        if (wrapper) {
+            wrapper.style.overflowX = 'auto';
+            wrapper.style.overflowY = 'visible';
+            // Force a reflow to ensure layout is calculated
+            wrapper.offsetHeight;
+        }
+        // Force a reflow to ensure canvas is visible
+        canvas.offsetHeight;
     }
     
-    // Get all years in the filtered period
+    // Use ALL data (not filtered) to show KPI for all years
+    const allData = state.data;
+    
+    // Determine year range from ALL data
+    // For KPI chart, we want to show all history from 1994
+    let minYear = 1994;
+    let maxYear = 2025;
+    if (allData.length > 0) {
+        // Find the first year with data (but always start from 1994 for KPI chart)
+        const firstDataYear = allData[0].date.getFullYear();
+        minYear = 1994; // Always start from 1994 for KPI chart
+        maxYear = allData[allData.length - 1].date.getFullYear();
+    }
+    
+    // Get all years in the full period
     const years = [];
     for (let year = minYear; year <= maxYear; year++) {
         years.push(year);
     }
     
-    // Calculate yearly KPI from CSV data (average of monthly values)
-    const byYear = {};
-    filteredData.forEach(row => {
-        const year = row.date.getFullYear();
-        if (year >= minYear && year <= maxYear) {
-            if (!byYear[year]) {
-                byYear[year] = [];
-            }
-            if (row.kpi !== undefined && row.kpi !== null) {
-                byYear[year].push(row.kpi);
-            }
-        }
-    });
-    
     // Calculate average KPI per year
     const yearlyKPIs = {};
-    Object.keys(byYear).forEach(year => {
-        const kpiValues = byYear[year];
-        if (kpiValues.length > 0) {
+    // Process all years in range
+    for (let year = minYear; year <= maxYear; year++) {
+        const yearKey = year.toString();
+        // Always check allData directly for this year
+        const yearData = allData.filter(row => {
+            if (!row.date) return false;
+            const rowYear = row.date.getFullYear();
+            if (rowYear !== year) return false;
+            if (row.kpi === undefined || row.kpi === null || isNaN(row.kpi)) return false;
+            return true;
+        });
+        
+        if (yearData.length > 0) {
+            const kpiValues = yearData.map(r => r.kpi);
             const sum = kpiValues.reduce((a, b) => a + b, 0);
-            yearlyKPIs[year] = sum / kpiValues.length;
+            yearlyKPIs[yearKey] = sum / kpiValues.length;
         } else {
-            yearlyKPIs[year] = 0;
+            yearlyKPIs[yearKey] = 0;
+        }
+    }
+    
+    // Prepare data for chart - KPI and market premium per year
+    // First, collect all years with KPI data and calculate portfolio returns
+    const allYearsWithData = [];
+    years.forEach(year => {
+        const yearKey = year.toString();
+        const kpi = yearlyKPIs[yearKey] !== undefined ? yearlyKPIs[yearKey] : null;
+        
+        // Only process years that have KPI data
+        if (kpi !== null && kpi !== 0) {
+            // Calculate portfolio return for this year
+            const portfolioMetrics = calculateYearlyPortfolioMetrics(year, state.newPortfolio);
+            // For years before 2001, portfolio return might be null, but we still want to show KPI
+            // Set to 0 if null so we can still show the KPI bar
+            const portfolioReturn = portfolioMetrics.return !== null ? portfolioMetrics.return : 0;
+            
+            // Calculate market premium (portfolio return - KPI)
+            // For years without portfolio data, market premium will just be -KPI
+            const marketPremium = portfolioReturn - kpi;
+            
+            // Always include years with KPI data, even if portfolio return is 0
+            allYearsWithData.push({
+                year: year,
+                kpi: kpi,
+                portfolioReturn: portfolioReturn,
+                marketPremium: marketPremium
+            });
         }
     });
     
-    // Calculate cumulative KPI index (starting at 100) - only for start/end values
-    let kpiIndex = 100;
+    // Filter based on selected period
+    let filteredYears = allYearsWithData;
+    if (state.selectedPeriod === '10y' && allYearsWithData.length > 0) {
+        // Show only the last 10 years
+        filteredYears = allYearsWithData.slice(-10);
+    } else if (state.selectedPeriod === '5y' && allYearsWithData.length > 0) {
+        // Show only the last 5 years
+        filteredYears = allYearsWithData.slice(-5);
+    } else if (state.selectedPeriod === '3y' && allYearsWithData.length > 0) {
+        // Show only the last 3 years
+        filteredYears = allYearsWithData.slice(-3);
+    } else if (state.selectedPeriod === '12m' && allYearsWithData.length > 0) {
+        // Show only the last year
+        filteredYears = allYearsWithData.slice(-1);
+    } else if (state.selectedPeriod === 'ytd' && allYearsWithData.length > 0) {
+        // Show only the current year
+        const currentYear = new Date().getFullYear();
+        filteredYears = allYearsWithData.filter(y => y.year === currentYear);
+        if (filteredYears.length === 0) {
+            // If current year not available, show last year
+            filteredYears = allYearsWithData.slice(-1);
+        }
+    } else if (state.selectedPeriod === 'year-by-year') {
+        // For 'year-by-year', show all history from 1994 onwards
+        filteredYears = allYearsWithData.filter(y => y.year >= 1994);
+    } else if (state.selectedPeriod === 'max') {
+        // FIX: TEST - For Max period, show only last 20 years instead of all years
+        // This tests if the number of categories (32) is causing the rendering issue
+        if (allYearsWithData.length > 20) {
+            filteredYears = allYearsWithData.slice(-20);
+        } else {
+            filteredYears = allYearsWithData.filter(y => y.year >= 1994);
+        }
+    }
+    // Note: If no period matches, filteredYears will remain as allYearsWithData (showing all years)
     
-    // Calculate portfolio purchasing power index (starting at 100) - only for start/end values
-    // This represents real purchasing power adjusted for KPI/inflation
-    let portfolioIndex = 100;
+    // Safety check: ensure we have data to display
+    if (!filteredYears || filteredYears.length === 0) {
+        console.warn('No data to display for KPI chart with period:', state.selectedPeriod);
+        return;
+    }
     
-    // Store yearly data and calculate values for chart
-    const yearlyData = [];
-    const kpiPercentValues = []; // KPI in percent for each year (for chart)
-    const excessReturnValues = []; // Excess return in percent for each year (for chart)
-    
-    // Calculate indices for each year
-    // Make sure we process years in order and handle missing data
-    years.forEach(year => {
-        // Convert year to string for lookup (yearlyKPIs uses string keys)
-        const yearStr = year.toString();
-        const kpi = yearlyKPIs[yearStr] !== undefined ? yearlyKPIs[yearStr] : 0;
+    // Ensure canvas and wrapper are properly sized for many years
+    if (canvas) {
+        const wrapper = canvas.closest('.chart-wrapper');
+        if (wrapper) {
+            // Always ensure wrapper can scroll horizontally if needed
+            wrapper.style.overflowX = 'auto';
+            wrapper.style.overflowY = 'visible';
+            wrapper.style.display = 'block';
+            wrapper.style.visibility = 'visible';
+            wrapper.style.opacity = '1';
+            wrapper.style.minHeight = '400px';
+            
+            // Get wrapper dimensions to ensure proper sizing
+            const wrapperRect = wrapper.getBoundingClientRect();
+            const wrapperWidth = wrapperRect.width || wrapper.offsetWidth;
+            const wrapperHeight = wrapperRect.height || wrapper.offsetHeight;
+            
+            // Ensure canvas has proper dimensions before creating chart
+            // Chart.js needs the container to have dimensions
+            if (wrapperWidth > 0 && wrapperHeight > 0) {
+                // Set explicit height on wrapper to help Chart.js calculate size
+                wrapper.style.height = `${Math.max(wrapperHeight, 400)}px`;
+            }
+            
+            // Force a reflow to ensure layout is calculated
+            wrapper.offsetHeight;
+        }
+        // Ensure canvas is visible and has proper dimensions
+        canvas.style.display = 'block';
+        canvas.style.visibility = 'visible';
+        canvas.style.opacity = '1';
         
-        // Update KPI index: multiply by (1 + kpi/100) - for cumulative calculation
-        kpiIndex = kpiIndex * (1 + kpi / 100);
+        // Get canvas container dimensions
+        const canvasRect = canvas.getBoundingClientRect();
+        const containerWidth = canvasRect.width || canvas.offsetWidth || 800;
+        const containerHeight = canvasRect.height || canvas.offsetHeight || 400;
         
-        // Calculate portfolio return for this year
-        const portfolioMetrics = calculateYearlyPortfolioMetrics(year, state.newPortfolio);
-        const portfolioReturn = portfolioMetrics.return !== null ? portfolioMetrics.return : 0;
-        
-        // Calculate excess return (portfolio return - KPI) in percent
-        const excessReturn = portfolioReturn - kpi;
-        
-        // Update portfolio index: multiply by (1 + portfolioReturn/100) - same calculation method as KPI index
-        // Start at 100, multiply by (1 + portfolioReturn / 100) each year
-        portfolioIndex = portfolioIndex * (1 + portfolioReturn / 100);
-        
-        // For chart: use KPI and excess return as percentages (not indexed)
-        kpiPercentValues.push(kpi);
-        excessReturnValues.push(excessReturn);
-        
-        // Store yearly data
-        yearlyData.push({
-            year: year,
-            kpi: kpi,
-            portfolioReturn: portfolioReturn,
-            excessReturn: excessReturn,
-            kpiIndex: kpiIndex,
-            portfolioIndex: portfolioIndex
-        });
-    });
-    
-    // Ensure labels are strings and match data length
-    const chartLabels = years.map(y => y.toString());
-    
-    // Debug: Log to check data consistency
-    console.log('KPI Chart Data:', {
-        years: years.length,
-        labels: chartLabels.length,
-        kpiValues: kpiPercentValues.length,
-        excessValues: excessReturnValues.length
-    });
-    
-    // Register custom plugin to completely disable hover effects
-    const disableHoverPlugin = {
-        id: 'disableHover',
-        beforeEvent: function(chart, args) {
-            // Intercept all events and prevent hover effects
-            if (args.event && args.event.type === 'mousemove') {
-                // Force all bars to remain visible before any hover processing
-                if (chart.data && chart.data.datasets) {
-                    chart.data.datasets.forEach((dataset, datasetIndex) => {
-                        const meta = chart.getDatasetMeta(datasetIndex);
-                        if (meta && meta.data) {
-                            meta.data.forEach((bar) => {
-                                if (bar) {
-                                    // Set hover colors to match normal colors
-                                    bar.options.hoverBackgroundColor = dataset.backgroundColor;
-                                    bar.options.hoverBorderColor = dataset.borderColor;
-                                    bar.options.hoverBorderWidth = dataset.borderWidth;
-                                    bar.options.hoverOpacity = 1;
-                                }
-                            });
-                        }
-                    });
+        // Ensure canvas has dimensions (Chart.js will handle responsive sizing)
+        if (containerWidth > 0 && containerHeight > 0) {
+            // Don't set canvas.width/height directly - let Chart.js handle it
+            // But ensure the parent has dimensions
+            const parent = canvas.parentElement;
+            if (parent && parent === wrapper) {
+                if (!parent.style.height || parent.style.height === 'auto') {
+                    parent.style.height = `${Math.max(containerHeight, 400)}px`;
                 }
             }
-        },
-        afterEvent: function(chart, args) {
-            // After event processing, force all bars to be fully visible
-            if (chart.data && chart.data.datasets) {
-                chart.data.datasets.forEach((dataset, datasetIndex) => {
-                    const meta = chart.getDatasetMeta(datasetIndex);
-                    if (meta && meta.data) {
-                        meta.data.forEach((bar) => {
-                            if (bar && bar._model) {
-                                // Force opacity to always be 1
-                                bar._model.opacity = 1;
-                                bar._model.backgroundColor = dataset.backgroundColor;
-                                bar._model.borderColor = dataset.borderColor;
-                            }
-                        });
-                    }
-                });
-                // Force a redraw to ensure changes are visible
-                chart.draw();
-            }
-        },
-        beforeUpdate: function(chart) {
-            // Before update, ensure all hover options are set correctly
-            if (chart.data && chart.data.datasets) {
-                chart.data.datasets.forEach((dataset, datasetIndex) => {
-                    const meta = chart.getDatasetMeta(datasetIndex);
-                    if (meta && meta.data) {
-                        meta.data.forEach((bar) => {
-                            if (bar) {
-                                bar.options.hoverBackgroundColor = dataset.backgroundColor;
-                                bar.options.hoverBorderColor = dataset.borderColor;
-                                bar.options.hoverBorderWidth = dataset.borderWidth;
-                                bar.options.hoverOpacity = 1;
-                            }
-                        });
-                    }
-                });
-            }
         }
-    };
+        
+        canvas.offsetHeight;
+    }
     
+    // Extract labels and values for chart
+    // For proper stacking: KPI always from 0, market premium stacks on top
+    // To handle negative market premium correctly, we need to adjust the data structure
+    
+    // FIX 2: Filter out any invalid data (NaN, null, undefined) before creating arrays
+    const validYears = filteredYears.filter(y => {
+        const kpiValid = y.kpi !== null && y.kpi !== undefined && !isNaN(y.kpi);
+        const premiumValid = y.marketPremium !== null && y.marketPremium !== undefined && !isNaN(y.marketPremium);
+        return kpiValid && premiumValid;
+    });
+    
+    // Safety check: if we filtered out data, log a warning
+    if (validYears.length !== filteredYears.length) {
+        console.warn(`⚠️ Filtered out ${filteredYears.length - validYears.length} invalid data points`);
+    }
+    
+    // If no valid data, return early
+    if (validYears.length === 0) {
+        console.error('❌ No valid data to display for KPI chart');
+        return;
+    }
+    
+    const chartLabels = validYears.map(y => y.year.toString());
+    
+    // KPI values - always positive, starts from 0
+    // FIX 2: Ensure all values are numbers (convert to 0 if somehow invalid)
+    const kpiValues = validYears.map(y => {
+        const val = y.kpi;
+        return (val !== null && val !== undefined && !isNaN(val)) ? Number(val) : 0;
+    });
+    
+    // Market premium values - can be positive or negative
+    // In Chart.js stacked bars, negative values go down from 0, not from the top of KPI
+    // FIX 2: Ensure all values are numbers (convert to 0 if somehow invalid)
+    const marketPremiumValues = validYears.map(y => {
+        const val = y.marketPremium;
+        return (val !== null && val !== undefined && !isNaN(val)) ? Number(val) : 0;
+    });
+    
+    // DEBUG: Check data for Max period
+    if (state.selectedPeriod === 'max') {
+        console.log('=== DEBUG: Markedspremie Max Period Data ===');
+        console.log('Array length (filteredYears):', filteredYears.length);
+        console.log('Array length (kpiValues):', kpiValues.length);
+        console.log('Array length (marketPremiumValues):', marketPremiumValues.length);
+        console.log('Array length (chartLabels):', chartLabels.length);
+        
+        // Check for null, undefined, or NaN in kpiValues
+        const kpiInvalid = kpiValues.filter((val, idx) => val === null || val === undefined || isNaN(val));
+        if (kpiInvalid.length > 0) {
+            console.warn('⚠️ KPI values with null/undefined/NaN:', kpiInvalid.length, 'out of', kpiValues.length);
+            console.warn('Invalid KPI indices:', kpiValues.map((val, idx) => 
+                (val === null || val === undefined || isNaN(val)) ? idx : null
+            ).filter(idx => idx !== null));
+        } else {
+            console.log('✅ All KPI values are valid');
+        }
+        
+        // Check for null, undefined, or NaN in marketPremiumValues
+        const premiumInvalid = marketPremiumValues.filter((val, idx) => val === null || val === undefined || isNaN(val));
+        if (premiumInvalid.length > 0) {
+            console.warn('⚠️ Market premium values with null/undefined/NaN:', premiumInvalid.length, 'out of', marketPremiumValues.length);
+            console.warn('Invalid premium indices:', marketPremiumValues.map((val, idx) => 
+                (val === null || val === undefined || isNaN(val)) ? idx : null
+            ).filter(idx => idx !== null));
+        } else {
+            console.log('✅ All market premium values are valid');
+        }
+        
+        // Calculate min/max for kpiValues
+        const kpiNumbers = kpiValues.filter(val => val !== null && val !== undefined && !isNaN(val));
+        if (kpiNumbers.length > 0) {
+            const kpiMin = Math.min(...kpiNumbers);
+            const kpiMax = Math.max(...kpiNumbers);
+            console.log('KPI min value:', kpiMin);
+            console.log('KPI max value:', kpiMax);
+            console.log('KPI range:', kpiMax - kpiMin);
+        } else {
+            console.warn('⚠️ No valid KPI numbers found!');
+        }
+        
+        // Calculate min/max for marketPremiumValues
+        const premiumNumbers = marketPremiumValues.filter(val => val !== null && val !== undefined && !isNaN(val));
+        if (premiumNumbers.length > 0) {
+            const premiumMin = Math.min(...premiumNumbers);
+            const premiumMax = Math.max(...premiumNumbers);
+            console.log('Market premium min value:', premiumMin);
+            console.log('Market premium max value:', premiumMax);
+            console.log('Market premium range:', premiumMax - premiumMin);
+        } else {
+            console.warn('⚠️ No valid market premium numbers found!');
+        }
+        
+        // Show sample of data
+        console.log('Sample of first 5 years:', filteredYears.slice(0, 5).map(y => ({
+            year: y.year,
+            kpi: y.kpi,
+            portfolioReturn: y.portfolioReturn,
+            marketPremium: y.marketPremium
+        })));
+        console.log('Sample of last 5 years:', filteredYears.slice(-5).map(y => ({
+            year: y.year,
+            kpi: y.kpi,
+            portfolioReturn: y.portfolioReturn,
+            marketPremium: y.marketPremium
+        })));
+        console.log('=== END DEBUG ===');
+    }
+    
+    // Create stacked bar chart showing KPI and market premium
     state.charts[chartKey] = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -4188,81 +4784,104 @@ function createKPIStackedBarChart(ctx, tabNumber) {
             datasets: [
                 {
                     label: 'KPI',
-                    data: kpiPercentValues,
-                    backgroundColor: 'oklch(0.65 0.02 0)', // Pleasant gray
+                    data: kpiValues,
+                    backgroundColor: 'oklch(0.65 0.02 0)', // Pleasant gray (same as before)
                     borderColor: 'oklch(0.55 0.02 0)', // Slightly darker gray for border
                     borderWidth: 1.5,
-                    borderRadius: 4,
-                    borderSkipped: false
+                    borderRadius: {
+                        topLeft: 4,
+                        topRight: 4,
+                        bottomLeft: 4,
+                        bottomRight: 4
+                    },
+                    borderSkipped: false,
+                    // FIX: Use maxBarThickness for Max period instead of barThickness
+                    // maxBarThickness is more flexible and allows Chart.js to calculate minimum
+                    maxBarThickness: state.selectedPeriod === 'max' ? 20 : 50
                 },
                 {
                     label: 'Markedspremie',
-                    data: excessReturnValues,
-                    backgroundColor: 'oklch(0.55 0.20 260)', // Deeper, more vibrant blue
-                    borderColor: 'oklch(0.50 0.18 255)',
+                    data: marketPremiumValues,
+                    backgroundColor: 'oklch(0.4322 0.1500 28.9906)', // Red color (destructive from design system)
+                    borderColor: 'oklch(0.35 0.15 28)', // Darker red for border
                     borderWidth: 1.5,
-                    borderRadius: 4,
-                    borderSkipped: false
+                    borderRadius: {
+                        topLeft: 4,
+                        topRight: 4,
+                        bottomLeft: 4,
+                        bottomRight: 4
+                    },
+                    borderSkipped: false,
+                    // FIX: Use maxBarThickness for Max period instead of barThickness
+                    // maxBarThickness is more flexible and allows Chart.js to calculate minimum
+                    maxBarThickness: state.selectedPeriod === 'max' ? 20 : 50
                 }
             ]
         },
-        options: {
+            options: {
             ...commonChartOptions,
+            // Keep vertical bars (indexAxis: 'x') for all periods
             indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            // FIX 3: Animasjons-konflikt - Disable all animations to prevent race conditions with many bars
             animation: {
-                duration: 0  // Disable animations to prevent hover effects
+                duration: 0,
+                animateRotate: false,
+                animateScale: false
             },
             transitions: {
                 active: {
                     animation: {
                         duration: 0
                     }
-                },
-                hover: {
-                    animation: {
-                        duration: 0
-                    }
                 }
             },
-            interaction: {
-                intersect: false,
-                mode: false  // Completely disable interaction mode
-            },
-            onHover: null,  // Disable hover completely
-            elements: {
-                bar: {
-                    hoverBackgroundColor: function(context) {
-                        return context.dataset.backgroundColor;
-                    },
-                    hoverBorderColor: function(context) {
-                        return context.dataset.borderColor;
-                    },
-                    hoverBorderWidth: function(context) {
-                        return context.dataset.borderWidth;
-                    },
-                    hoverOpacity: 1  // Keep full opacity on hover
+            // Match sykepleierindeksen layout padding - bar charts have different default padding than line charts
+            // Set explicit padding to match sykepleierindeksen x-axis position
+            layout: {
+                padding: {
+                    bottom: 0  // Match sykepleierindeksen - no extra bottom padding
                 }
             },
             scales: {
                 x: {
                     stacked: true,
                     grid: {
-                        display: false
+                        display: false  // Match sykepleierindeksen
                     },
                     ticks: {
+                        // Match sykepleierindeksen x-axis formatting exactly - minimal config
                         font: {
                             family: "'DM Sans', sans-serif",
-                            size: 11
+                            size: 11  // Same size as sykepleierindeksen
                         },
-                        maxRotation: 45,
-                        minRotation: 45
+                        // Match sykepleierindeksen ticks padding (no explicit padding in commonChartOptions)
+                        // Only add rotation for Max period when needed, otherwise use defaults like sykepleierindeksen
+                        ...(state.selectedPeriod === 'max' || state.selectedPeriod === 'year-by-year' ? {
+                            maxRotation: 90,
+                            minRotation: 90,
+                            maxTicksLimit: undefined,
+                            stepSize: 1,
+                            autoSkip: false
+                        } : {})
+                        // For normal periods, don't override anything - use Chart.js defaults like sykepleierindeksen
                     },
-                    barPercentage: 0.75,
-                    categoryPercentage: 0.85
+                    // FIX: For Max period, use high barPercentage to ensure bars are visible
+                    // Chart.js needs explicit percentages to render many bars
+                    ...(state.selectedPeriod === 'max' ? {
+                        barPercentage: 0.9,  // High percentage to maximize bar width
+                        categoryPercentage: 0.95  // High category percentage to maximize space
+                    } : {
+                        barPercentage: 0.75,
+                        categoryPercentage: 0.85
+                    })
                 },
                 y: {
                     stacked: true,
-                    beginAtZero: true,
+                    // FIX: For Max period with negative values, don't force beginAtZero
+                    // Chart.js may have issues rendering stacked bars with negative values when beginAtZero is true
+                    beginAtZero: state.selectedPeriod === 'max' ? false : true,
                     grid: {
                         color: 'rgba(0, 0, 0, 0.05)'
                     },
@@ -4272,7 +4891,7 @@ function createKPIStackedBarChart(ctx, tabNumber) {
                             size: 11
                         },
                         callback: function(value) {
-                            return value.toFixed(0) + '%';
+                            return value.toFixed(1) + '%';
                         }
                     }
                 }
@@ -4285,14 +4904,19 @@ function createKPIStackedBarChart(ctx, tabNumber) {
                         label: function(context) {
                             const label = context.dataset.label || '';
                             const value = context.parsed.y;
-                            return label + ': ' + value.toFixed(1) + '%';
+                            if (label === 'KPI') {
+                                return 'KPI: ' + value.toFixed(2) + '%';
+                            } else if (label === 'Markedspremie') {
+                                return 'Markedspremie: ' + value.toFixed(2) + '%';
+                            }
+                            return label + ': ' + value.toFixed(2) + '%';
                         },
                         footer: function(tooltipItems) {
                             if (tooltipItems.length === 2) {
                                 const kpiValue = tooltipItems[0].parsed.y;
-                                const excessValue = tooltipItems[1].parsed.y;
-                                const total = kpiValue + excessValue;
-                                return 'Total avkastning: ' + total.toFixed(1) + '%';
+                                const premiumValue = tooltipItems[1].parsed.y;
+                                const total = kpiValue + premiumValue;
+                                return 'Total avkastning: ' + total.toFixed(2) + '%';
                             }
                             return '';
                         }
@@ -4303,17 +4927,141 @@ function createKPIStackedBarChart(ctx, tabNumber) {
                     display: true
                 }
             },
-            plugins: [disableHoverPlugin]
         }
     });
     
-    // Force chart update to ensure it renders properly
+    // FIX: Force chart update immediately and multiple times to ensure rendering
     if (state.charts[chartKey]) {
-        state.charts[chartKey].update('none');
+        // Ensure canvas is visible
+        const canvas = ctx.canvas;
+        if (canvas) {
+            canvas.style.display = 'block';
+            canvas.style.visibility = 'visible';
+            canvas.style.opacity = '1';
+            
+            // Ensure parent wrapper is visible and has overflow auto
+            const wrapper = canvas.closest('.chart-wrapper');
+            if (wrapper) {
+                wrapper.style.overflowX = 'auto';
+                wrapper.style.overflowY = 'visible';
+                wrapper.style.display = 'block';
+                wrapper.style.visibility = 'visible';
+                wrapper.style.opacity = '1';
+                
+                // Ensure wrapper has explicit dimensions
+                const wrapperRect = wrapper.getBoundingClientRect();
+                if (wrapperRect.width > 0 && wrapperRect.height > 0) {
+                    // Set explicit height to help Chart.js calculate size
+                    if (!wrapper.style.height || wrapper.style.height === 'auto') {
+                        wrapper.style.height = `${Math.max(wrapperRect.height, 400)}px`;
+                    }
+                }
+            }
+        }
+        
+        // FIX: Immediate update for Max period to force rendering
+        if (state.selectedPeriod === 'max') {
+            try {
+                // Force immediate update
+                state.charts[chartKey].update('none');
+                // Force resize to recalculate layout
+                state.charts[chartKey].resize();
+                // Update again after resize
+                state.charts[chartKey].update('none');
+            } catch (e) {
+                console.warn('Error in immediate chart update:', e);
+            }
+        }
+        
+        // Force chart resize multiple times to handle different viewport sizes
+        // First resize after a short delay
+        setTimeout(() => {
+            if (state.charts[chartKey]) {
+                try {
+                    state.charts[chartKey].resize();
+                    state.charts[chartKey].update('none');
+                } catch (e) {
+                    console.warn('Error resizing chart:', e);
+                }
+            }
+        }, 50);
+        
+        // Second resize after layout has fully stabilized
+        setTimeout(() => {
+            if (state.charts[chartKey]) {
+                try {
+                    state.charts[chartKey].resize();
+                    state.charts[chartKey].update('none');
+                } catch (e) {
+                    console.warn('Error resizing chart (delayed):', e);
+                }
+            }
+        }, 200);
+        
+        // Third resize to catch any late layout changes
+        setTimeout(() => {
+            if (state.charts[chartKey]) {
+                try {
+                    state.charts[chartKey].resize();
+                    state.charts[chartKey].update('none');
+                } catch (e) {
+                    console.warn('Error resizing chart (final):', e);
+                }
+            }
+        }, 500);
     }
     
     // Update info cards for KPI tab
-    updateKPIInfoCards(yearlyData, minYear);
+    if (validYears.length > 0) {
+        // Card 1: KPI første året
+        const firstYear = validYears[0];
+        const startValueEl = document.getElementById('nurse-start');
+        const startLabelEl = document.getElementById('nurse-start-label');
+        const startSublabelEl = document.getElementById('nurse-start-sublabel');
+        if (startValueEl) startValueEl.textContent = firstYear.kpi.toFixed(1);
+        if (startLabelEl) startLabelEl.textContent = `KPI første året`;
+        if (startSublabelEl) startSublabelEl.textContent = '%';
+        
+        // Card 2: KPI siste året
+        const lastYear = validYears[validYears.length - 1];
+        const endValueEl = document.getElementById('nurse-end');
+        const endLabelEl = document.getElementById('nurse-end-label');
+        const endSublabelEl = document.getElementById('nurse-end-sublabel');
+        if (endValueEl) endValueEl.textContent = lastYear.kpi.toFixed(1);
+        if (endLabelEl) endLabelEl.textContent = 'KPI siste år';
+        if (endSublabelEl) endSublabelEl.textContent = '%';
+        
+        // Card 3: Markedspremie første år (first card in second row)
+        const firstPremium = firstYear.marketPremium;
+        const firstCardEl = document.getElementById('nurse-index-first');
+        const firstLabelEl = document.getElementById('nurse-index-first-label');
+        const firstSublabelEl = document.getElementById('nurse-index-first-sublabel');
+        if (firstCardEl) firstCardEl.textContent = `${firstPremium >= 0 ? '+' : ''}${firstPremium.toFixed(1)}%`;
+        if (firstLabelEl) firstLabelEl.textContent = 'Markedspremie første år';
+        if (firstSublabelEl) firstSublabelEl.textContent = '';
+        
+        // Card 4: Laveste markedspremie
+        const minPremiumEntry = validYears.reduce((min, current) => 
+            current.marketPremium < min.marketPremium ? current : min
+        );
+        const tenYearsAgoEl = document.getElementById('nurse-index-10-years-ago');
+        const tenYearsLabelEl = document.getElementById('nurse-index-10-years-label');
+        const tenYearsSublabelEl = document.getElementById('nurse-index-10-years-sublabel');
+        if (tenYearsAgoEl) tenYearsAgoEl.textContent = `${minPremiumEntry.marketPremium.toFixed(1)}% ${minPremiumEntry.year}`;
+        if (tenYearsLabelEl) tenYearsLabelEl.textContent = 'Laveste observasjon';
+        if (tenYearsSublabelEl) tenYearsSublabelEl.textContent = '';
+        
+        // Card 4: Markedspremien siste år
+        const lastPremium = lastYear.marketPremium;
+        const lastCardEl = document.getElementById('nurse-index-last');
+        const lastLabelEl = document.getElementById('nurse-index-last-label');
+        const lastSublabelEl = document.getElementById('nurse-index-last-sublabel');
+        const growthContainer = document.getElementById('nurse-index-growth');
+        if (lastCardEl) lastCardEl.textContent = `${lastPremium >= 0 ? '+' : ''}${lastPremium.toFixed(1)}%`;
+        if (lastLabelEl) lastLabelEl.textContent = 'Markedspremien siste år';
+        if (lastSublabelEl) lastSublabelEl.textContent = '';
+        if (growthContainer) growthContainer.style.display = 'none';
+    }
 }
 
 function updateKPIInfoCards(yearlyData, startYear) {
@@ -4535,7 +5283,12 @@ function setupTabNavigation() {
             // Initialize charts for the active tab
             switch (tabId) {
                 case 'input':
-                    // Input tab - no chart needed
+                    // Re-render treemap charts when navigating back to input tab
+                    // Small delay to ensure tab is visible before rendering
+                    setTimeout(() => {
+                        updateTreemapChart('current');
+                        updateTreemapChart('new');
+                    }, 100);
                     break;
                 case 'portfolio-comparison':
                     createOverviewChart();
@@ -4555,6 +5308,9 @@ function setupTabNavigation() {
                     break;
                 case 'nurse':
                     createNurseChart(state.activeNurseTab);
+                    break;
+                case 'pyramid':
+                    createPyramidChart();
                     break;
                 case 'assets':
                     createAssetsGrid();
@@ -4662,6 +5418,10 @@ function setupEventListeners() {
             if (activeTab === 'assets') {
                 createAssetsGrid();
             }
+            // Update pyramid chart if it's the active tab
+            if (activeTab === 'pyramid') {
+                createPyramidChart();
+            }
         }, 250);
     });
     
@@ -4750,12 +5510,31 @@ function setupEventListeners() {
     
     // Period selector
     const periodButtons = document.querySelectorAll('.period-btn');
+    const yearByYearBtn = document.getElementById('year-by-year-btn');
+    
     periodButtons.forEach(btn => {
         btn.addEventListener('click', () => {
+            // Skip if it's the year-by-year button (handled separately)
+            if (btn.id === 'year-by-year-btn') {
+                return;
+            }
+            
             periodButtons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             state.selectedPeriod = btn.dataset.period;
             updatePeriodDisplay();
+            
+            // Ensure nurse chart wrapper is visible before updating charts
+            const nurseWrapper = document.querySelector('#tab-nurse .chart-wrapper.large');
+            if (nurseWrapper) {
+                nurseWrapper.style.display = 'block';
+                nurseWrapper.style.visibility = 'visible';
+                nurseWrapper.style.opacity = '1';
+                nurseWrapper.style.minHeight = '400px';
+                nurseWrapper.style.height = 'auto';
+                nurseWrapper.style.flexShrink = '0';
+            }
+            
             updateCharts();
             
             // If on assets tab, update grid too
@@ -4765,6 +5544,33 @@ function setupEventListeners() {
             }
         });
     });
+    
+    // Year-by-year button - shows all history from 1994
+    if (yearByYearBtn) {
+        yearByYearBtn.addEventListener('click', () => {
+            // Set all other period buttons to inactive
+            periodButtons.forEach(b => {
+                if (b.id !== 'year-by-year-btn') {
+                    b.classList.remove('active');
+                }
+            });
+            
+            // Activate year-by-year button
+            yearByYearBtn.classList.add('active');
+            
+            // Set a special period state for year-by-year
+            state.selectedPeriod = 'year-by-year';
+            
+            // Update charts to show all history from 1994
+            updateCharts();
+            
+            // If on assets tab, update grid too
+            const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
+            if (activeTab === 'assets') {
+                createAssetsGrid();
+            }
+        });
+    }
     
     // Nurse tab selector buttons
     const nurseTabButtons = document.querySelectorAll('.nurse-tab-selector .selector-btn');
@@ -4785,16 +5591,28 @@ function setupEventListeners() {
             const canvas3 = document.getElementById('nurse-chart-3');
             const canvas4 = document.getElementById('nurse-chart-4');
             const canvas5 = document.getElementById('nurse-chart-5');
-            if (canvas1 && canvas2 && canvas3 && canvas4 && canvas5) {
+            const canvas6 = document.getElementById('nurse-chart-6');
+            if (canvas1 && canvas2 && canvas3 && canvas4 && canvas5 && canvas6) {
                 canvas1.style.display = tabNumber === 1 ? 'block' : 'none';
                 canvas2.style.display = tabNumber === 2 ? 'block' : 'none';
                 canvas3.style.display = tabNumber === 3 ? 'block' : 'none';
                 canvas4.style.display = tabNumber === 4 ? 'block' : 'none';
                 canvas5.style.display = tabNumber === 5 ? 'block' : 'none';
+                canvas6.style.display = tabNumber === 6 ? 'block' : 'none';
             }
             
             // Create/update chart for selected tab
             createNurseChart(tabNumber);
+        });
+    });
+    
+    // Pyramid portfolio selector buttons
+    const pyramidPortfolioButtons = document.querySelectorAll('.pyramid-controls .selector-btn');
+    pyramidPortfolioButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            pyramidPortfolioButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            createPyramidChart();
         });
     });
     
@@ -4875,6 +5693,9 @@ function setupEventListeners() {
         rebalancingButtons.forEach(b => b.classList.remove('active'));
         initialActiveBtn.classList.add('active');
     }
+    
+    // Setup start capital editor
+    setupStartCapitalEditor();
 }
 
 function updatePeriodDisplay() {
@@ -4900,12 +5721,85 @@ function updatePeriodDisplay() {
     }
 }
 
+function updateStartCapitalDisplay() {
+    // Update the start capital badge in header
+    const startCapitalDisplay = document.getElementById('start-capital-display');
+    if (startCapitalDisplay) {
+        const capitalInMNOK = state.startCapital / 1000000;
+        startCapitalDisplay.textContent = `${capitalInMNOK} MNOK`;
+    }
+}
+
+function setupStartCapitalEditor() {
+    // Setup double-click to edit start capital
+    const startCapitalDisplay = document.getElementById('start-capital-display');
+    if (!startCapitalDisplay) return;
+    
+    startCapitalDisplay.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        
+        const currentValue = state.startCapital / 1000000; // Convert to MNOK
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.value = currentValue;
+        input.min = '0.1';
+        input.step = '0.1';
+        input.style.width = '80px';
+        input.style.fontFamily = 'var(--font-mono)';
+        input.style.fontSize = 'var(--text-sm)';
+        input.style.fontWeight = '600';
+        input.style.textAlign = 'center';
+        input.style.border = '2px solid var(--primary)';
+        input.style.borderRadius = 'var(--radius-sm)';
+        input.style.padding = '2px 4px';
+        input.style.background = 'var(--card)';
+        
+        // Replace text with input
+        const originalText = startCapitalDisplay.textContent;
+        startCapitalDisplay.textContent = '';
+        startCapitalDisplay.appendChild(input);
+        input.focus();
+        input.select();
+        
+        const finishEditing = () => {
+            const newValue = parseFloat(input.value);
+            if (!isNaN(newValue) && newValue > 0) {
+                // Update start capital (convert from MNOK to NOK)
+                state.startCapital = newValue * 1000000;
+                updateStartCapitalDisplay();
+                
+                // Update all charts that depend on start capital
+                updateCharts();
+                
+                // Update treemap charts
+                updateTreemapChart('current');
+                updateTreemapChart('new');
+            } else {
+                // Restore original value if invalid
+                updateStartCapitalDisplay();
+            }
+        };
+        
+        input.addEventListener('blur', finishEditing);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                finishEditing();
+            } else if (e.key === 'Escape') {
+                updateStartCapitalDisplay();
+            }
+        });
+    });
+}
+
 function updateCharts() {
     const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
     
     switch (activeTab) {
         case 'input':
-            // Input tab - no chart needed
+            // Update treemap charts on input tab
+            updateTreemapChart('current');
+            updateTreemapChart('new');
             break;
         case 'portfolio-comparison':
             createOverviewChart();
@@ -4928,6 +5822,23 @@ function updateCharts() {
             break;
         case 'nurse':
             createNurseChart(state.activeNurseTab);
+            // Ensure chart wrapper is visible after chart creation, especially for max period
+            setTimeout(() => {
+                const wrapper = document.querySelector('#tab-nurse .chart-wrapper.large');
+                if (wrapper) {
+                    wrapper.style.display = 'block';
+                    wrapper.style.visibility = 'visible';
+                    wrapper.style.opacity = '1';
+                    wrapper.style.minHeight = '400px';
+                    wrapper.style.height = 'auto';
+                    wrapper.style.flexShrink = '0';
+                    // Force reflow
+                    wrapper.offsetHeight;
+                }
+            }, 150);
+            break;
+        case 'pyramid':
+            createPyramidChart();
             break;
         case 'assets':
             createAssetsGrid();
@@ -5180,11 +6091,12 @@ function initializeHistoricalKPIModal() {
     }
     
     // Populate the table with KPI data (clear first to avoid duplicates)
-    tableBody.innerHTML = '';
     populateKPITable(tableBody);
 
     // Open modal
     openBtn.addEventListener('click', function() {
+        // Re-populate table each time modal opens to ensure it has latest data
+        populateKPITable(tableBody);
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
     });
@@ -5216,14 +6128,42 @@ function initializeHistoricalKPIModal() {
 
 // Populate KPI table with data
 function populateKPITable(tableBody) {
-    // Sort KPI data by year
-    const sortedKPIData = Object.entries(kpiData).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+    // Clear table first
+    tableBody.innerHTML = '';
     
-    sortedKPIData.forEach(([year, kpi]) => {
+    // Get KPI data from state.data (CSV data) instead of hardcoded kpiData
+    // This ensures we get all history from 1994
+    const allData = state.data;
+    
+    // Group KPI data by year and calculate average per year
+    const yearlyKPIs = {};
+    
+    allData.forEach(row => {
+        if (row.date && row.kpi !== undefined && row.kpi !== null && !isNaN(row.kpi)) {
+            const year = row.date.getFullYear();
+            if (!yearlyKPIs[year]) {
+                yearlyKPIs[year] = [];
+            }
+            yearlyKPIs[year].push(row.kpi);
+        }
+    });
+    
+    // Calculate average KPI per year and sort by year
+    const sortedKPIData = Object.entries(yearlyKPIs)
+        .map(([year, kpiValues]) => {
+            const avgKPI = kpiValues.reduce((a, b) => a + b, 0) / kpiValues.length;
+            return [parseInt(year), avgKPI];
+        })
+        .sort((a, b) => a[0] - b[0]); // Sort by year
+    
+    // Only show years from 1994 onwards
+    const filteredKPIData = sortedKPIData.filter(([year]) => year >= 1994);
+    
+    filteredKPIData.forEach(([year, kpi]) => {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${year}</td>
-            <td>${kpi}%</td>
+            <td>${kpi.toFixed(2)}%</td>
         `;
         tableBody.appendChild(row);
     });
@@ -5356,11 +6296,11 @@ function calculateYearlyPortfolioMetrics(year, portfolio) {
     const endValue = portfolioValues[portfolioValues.length - 1].value;
     const yearlyReturn = ((endValue - startValue) / startValue) * 100;
     
-    // Calculate cumulative return from 2001 to this year
-    // Get data from 2001 to the end of this year
+    // Calculate cumulative return from 1994 to this year
+    // Get data from 1994 to the end of this year
     const dataFromStart = state.data.filter(row => {
         const rowYear = row.date.getFullYear();
-        return rowYear >= 2001 && rowYear <= year;
+        return rowYear >= 1994 && rowYear <= year;
     });
     
     let cumulativeReturn = null;
@@ -5378,9 +6318,19 @@ function calculateYearlyPortfolioMetrics(year, portfolio) {
 function populateYearByYearTable(tableBody) {
     tableBody.innerHTML = '';
     
-    // Generate years from 2001 to 2025
+    // Generate years from 1994 to 2025 (all available history)
     const years = [];
-    for (let year = 2001; year <= 2025; year++) {
+    // Get the actual year range from data
+    let minYear = 1994;
+    let maxYear = 2025;
+    if (state.data.length > 0) {
+        const firstYear = state.data[0].date.getFullYear();
+        const lastYear = state.data[state.data.length - 1].date.getFullYear();
+        minYear = Math.min(1994, firstYear);
+        maxYear = lastYear;
+    }
+    
+    for (let year = minYear; year <= maxYear; year++) {
         years.push(year);
     }
     
@@ -5453,6 +6403,12 @@ async function init() {
     // Setup UI
     updateSliderUI('current');
     updateSliderUI('new');
+    
+    // Update period display
+    updatePeriodDisplay();
+    
+    // Update start capital display
+    updateStartCapitalDisplay();
     
     // Initialize treemap charts
     updateTreemapChart('current');

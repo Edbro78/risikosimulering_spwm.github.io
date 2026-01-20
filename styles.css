@@ -379,6 +379,11 @@ body {
     overflow: hidden;
 }
 
+/* Remove scrollbar for pyramid tab and ensure full chart visibility */
+#tab-pyramid {
+    overflow: hidden !important;
+}
+
 /* Center the money value tab content */
 #tab-money {
     align-items: center;
@@ -896,6 +901,13 @@ body {
 #tab-nurse .chart-wrapper.large {
     min-height: 400px;
     max-height: 450px;
+    overflow-x: auto;
+    overflow-y: visible;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex-shrink: 0;
+    position: relative;
 }
 
 .chart-wrapper canvas {
@@ -2522,4 +2534,107 @@ body {
 
 .tab-content.active {
     animation: fadeIn 0.2s ease;
+}
+
+/* Pyramid Chart Styles */
+.pyramid-controls {
+    display: flex;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.pyramid-stats {
+    display: flex;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-md);
+    padding: var(--space-md);
+    background: var(--card);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+}
+
+.stat-item {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+.stat-label {
+    font-size: var(--text-sm);
+    color: var(--muted-foreground);
+    font-weight: 500;
+}
+
+.stat-value {
+    font-size: var(--text-lg);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--foreground);
+}
+
+.pyramid-chart-container {
+    background: var(--secondary); /* Same background as chart-wrapper (kjøpekraft) */
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    padding: var(--space-lg);
+    overflow: hidden; /* Remove scrollbars */
+    max-height: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.pyramid-chart {
+    min-width: 100%;
+    width: 100%;
+    position: relative;
+}
+
+.pyramid-box {
+    transition: opacity 0.2s ease, transform 0.1s ease;
+    /* Ensure boxes never go below x-axis */
+    position: relative;
+    z-index: 1;
+}
+
+.pyramid-stack {
+    /* Ensure stack never overlaps with x-axis labels */
+    position: relative;
+    z-index: 1;
+}
+
+.pyramid-bin-label {
+    /* Ensure label is always below boxes */
+    position: absolute;
+    z-index: 0;
+}
+
+.pyramid-box:hover {
+    opacity: 0.8;
+    transform: scale(1.05);
+    z-index: 10;
+}
+
+.pyramid-mean-label {
+    font-weight: 600;
+    color: var(--foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Disable legend click for KPI chart - force datasets to always be visible */
+#nurse-chart-3 ~ canvas,
+#nurse-chart-3 {
+    pointer-events: none;
+}
+
+/* Make legend non-clickable for KPI chart */
+#nurse-chart-3 + * .chartjs-legend,
+canvas#nurse-chart-3 ~ * .chartjs-legend {
+    pointer-events: none !important;
+    cursor: default !important;
+}
+
+canvas#nurse-chart-3 ~ * .chartjs-legend li {
+    pointer-events: none !important;
+    cursor: default !important;
 }
