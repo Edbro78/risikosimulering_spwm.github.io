@@ -651,8 +651,30 @@ function calculateYearlyReturns(data) {
                     : ((last.stocks - first.stocks) / first.stocks * 100), // Fallback to stocks if not available
                 kpi: kpiReturn
             };
+        } else if (yearData.length === 1) {
+            // If only one data point for the year, use it for all values (no change)
+            const single = yearData[0];
+            yearlyReturns[year] = {
+                stocks: 0,
+                riskFree: 0,
+                highYield: 0,
+                nordicStocks: 0,
+                emergingMarkets: 0,
+                kpi: single.kpi || 0
+            };
         }
     });
+    
+    // Debug: Log years found
+    const yearsFound = Object.keys(yearlyReturns).sort();
+    if (yearsFound.length > 0) {
+        console.log('calculateYearlyReturns - Years found:', {
+            count: yearsFound.length,
+            firstYear: yearsFound[0],
+            lastYear: yearsFound[yearsFound.length - 1],
+            allYears: yearsFound
+        });
+    }
     
     return yearlyReturns;
 }
@@ -1030,11 +1052,11 @@ function updateTreemapChart(type) {
     
     // Prepare data - filter out zero values
     const data = [
-        { name: 'Aksjer Global', value: portfolio.stocks, color: 'oklch(0.6020 0.1679 258.6201)' },
-        { name: 'Bankinnskudd', value: portfolio.riskFree, color: 'oklch(0.7450 0.1024 258.2961)' },
-        { name: 'High Yield', value: portfolio.highYield, color: 'oklch(0.8479 0.0603 257.7878)' },
-        { name: 'Aksjer Norden', value: portfolio.nordicStocks, color: 'oklch(0.4562 0.1809 260.1560)' },
-        { name: 'Aksjer Emerging Markets', value: portfolio.emergingMarkets, color: 'oklch(0.2722 0.1053 258.9631)' }
+        { name: 'Likviditet/kontanter', value: portfolio.stocks, color: 'oklch(0.6020 0.1679 258.6201)' },
+        { name: 'Renter', value: portfolio.riskFree, color: 'oklch(0.7450 0.1024 258.2961)' },
+        { name: 'Aksjer', value: portfolio.highYield, color: 'oklch(0.8479 0.0603 257.7878)' },
+        { name: 'Alternative strategier', value: portfolio.nordicStocks, color: 'oklch(0.4562 0.1809 260.1560)' },
+        { name: 'Annet', value: portfolio.emergingMarkets, color: 'oklch(0.2722 0.1053 258.9631)' }
     ].filter(item => item.value > 0);
     
     if (data.length === 0) return;
@@ -1458,11 +1480,11 @@ function createAssetClassesChart() {
     
     // Get asset classes with allocation > 0 in new portfolio
     const assetClasses = [
-        { key: 'stocks', name: 'Aksjer Global', color: 'oklch(0.6020 0.1679 258.6201)' },
-        { key: 'riskFree', name: 'Bankinnskudd', color: 'oklch(0.7450 0.1024 258.2961)' },
-        { key: 'highYield', name: 'High Yield', color: 'oklch(0.8479 0.0603 257.7878)' },
-        { key: 'nordicStocks', name: 'Aksjer Norden', color: 'oklch(0.4562 0.1809 260.1560)' },
-        { key: 'emergingMarkets', name: 'Aksjer Emerging Markets', color: 'oklch(0.2722 0.1053 258.9631)' }
+        { key: 'stocks', name: 'Likviditet/kontanter', color: 'oklch(0.6020 0.1679 258.6201)' },
+        { key: 'riskFree', name: 'Renter', color: 'oklch(0.7450 0.1024 258.2961)' },
+        { key: 'highYield', name: 'Aksjer', color: 'oklch(0.8479 0.0603 257.7878)' },
+        { key: 'nordicStocks', name: 'Alternative strategier', color: 'oklch(0.4562 0.1809 260.1560)' },
+        { key: 'emergingMarkets', name: 'Annet', color: 'oklch(0.2722 0.1053 258.9631)' }
     ].filter(asset => state.newPortfolio[asset.key] > 0);
     
     if (assetClasses.length === 0) {
@@ -1684,11 +1706,11 @@ function createAllocationChart() {
     
     // Get asset classes with allocation > 0 in new portfolio
     const assetClasses = [
-        { key: 'stocks', name: 'Aksjer Global', color: 'oklch(0.6020 0.1679 258.6201)' },
-        { key: 'riskFree', name: 'Bankinnskudd', color: 'oklch(0.7450 0.1024 258.2961)' },
-        { key: 'highYield', name: 'High Yield', color: 'oklch(0.8479 0.0603 257.7878)' },
-        { key: 'nordicStocks', name: 'Aksjer Norden', color: 'oklch(0.4562 0.1809 260.1560)' },
-        { key: 'emergingMarkets', name: 'Aksjer Emerging Markets', color: 'oklch(0.2722 0.1053 258.9631)' }
+        { key: 'stocks', name: 'Likviditet/kontanter', color: 'oklch(0.6020 0.1679 258.6201)' },
+        { key: 'riskFree', name: 'Renter', color: 'oklch(0.7450 0.1024 258.2961)' },
+        { key: 'highYield', name: 'Aksjer', color: 'oklch(0.8479 0.0603 257.7878)' },
+        { key: 'nordicStocks', name: 'Alternative strategier', color: 'oklch(0.4562 0.1809 260.1560)' },
+        { key: 'emergingMarkets', name: 'Annet', color: 'oklch(0.2722 0.1053 258.9631)' }
     ].filter(asset => state.newPortfolio[asset.key] > 0);
     
     if (assetClasses.length === 0) {
@@ -1849,11 +1871,11 @@ function createAllocationChart() {
     // Helper function to get asset key from name (for tooltip)
     function getAssetKeyFromName(name) {
         const nameMap = {
-            'Aksjer Global': 'stocks',
-            'Bankinnskudd': 'riskFree',
-            'High Yield': 'highYield',
-            'Aksjer Norden': 'nordicStocks',
-            'Aksjer Emerging Markets': 'emergingMarkets'
+            'Likviditet/kontanter': 'stocks',
+            'Renter': 'riskFree',
+            'Aksjer': 'highYield',
+            'Alternative strategier': 'nordicStocks',
+            'Annet': 'emergingMarkets'
         };
         return nameMap[name] || 'stocks';
     }
@@ -2030,11 +2052,11 @@ function createBubbleChart() {
     };
     
     const allAssetClasses = [
-        { key: 'stocks', name: 'Aksjer Global', cssVar: cssVarMap['stocks'], risk: 3 },
-        { key: 'riskFree', name: 'Bankinnskudd', cssVar: cssVarMap['risikofri'], risk: 1 },
-        { key: 'highYield', name: 'High Yield', cssVar: cssVarMap['highyield'], risk: 2 },
-        { key: 'nordicStocks', name: 'Aksjer Norden', cssVar: cssVarMap['nordicstocks'], risk: 3 },
-        { key: 'emergingMarkets', name: 'Aksjer Emerging Markets', cssVar: cssVarMap['emergingmarkets'], risk: 4 }
+        { key: 'stocks', name: 'Likviditet/kontanter', cssVar: cssVarMap['stocks'], risk: 3 },
+        { key: 'riskFree', name: 'Renter', cssVar: cssVarMap['risikofri'], risk: 1 },
+        { key: 'highYield', name: 'Aksjer', cssVar: cssVarMap['highyield'], risk: 2 },
+        { key: 'nordicStocks', name: 'Alternative strategier', cssVar: cssVarMap['nordicstocks'], risk: 3 },
+        { key: 'emergingMarkets', name: 'Annet', cssVar: cssVarMap['emergingmarkets'], risk: 4 }
     ];
     
     // Get colors from CSS variables and convert to RGB (EXACT same as input tab)
@@ -4285,6 +4307,188 @@ function calculateYearlyPortfolioReturns(portfolio) {
     return yearlyData;
 }
 
+// Calculate half-year returns for a portfolio (all half-years in the period)
+function calculateHalfYearPortfolioReturns(portfolio) {
+    const filteredData = getFilteredData();
+    const halfYearData = [];
+    
+    // Group data by year
+    const byYear = {};
+    filteredData.forEach(row => {
+        const year = row.date.getFullYear();
+        if (!byYear[year]) {
+            byYear[year] = [];
+        }
+        byYear[year].push(row);
+    });
+    
+    // Calculate half-year returns for each year
+    Object.keys(byYear).sort().forEach(year => {
+        const yearData = byYear[year];
+        if (yearData.length >= 2) {
+            // Calculate portfolio values for the entire year
+            const yearPortfolioValues = calculatePortfolioValue(yearData, portfolio, state.startCapital);
+            
+            if (yearPortfolioValues.length >= 2) {
+                // Find the midpoint of the year (end of June / start of July)
+                const midYearDate = new Date(parseInt(year), 5, 30); // Month 5 = June, day 30
+                
+                // Find the index closest to mid-year
+                let midYearIndex = 0;
+                let minDiff = Infinity;
+                yearPortfolioValues.forEach((pv, index) => {
+                    const diff = Math.abs(pv.date - midYearDate);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        midYearIndex = index;
+                    }
+                });
+                
+                // Calculate first half return (January to June)
+                if (midYearIndex > 0) {
+                    const firstHalfStart = yearPortfolioValues[0].value;
+                    const firstHalfEnd = yearPortfolioValues[midYearIndex].value;
+                    const firstHalfReturn = ((firstHalfEnd - firstHalfStart) / firstHalfStart) * 100;
+                    halfYearData.push({
+                        year: parseInt(year),
+                        half: 1,
+                        label: `${year} H1`,
+                        return: firstHalfReturn
+                    });
+                }
+                
+                // Calculate second half return (July to December)
+                if (midYearIndex < yearPortfolioValues.length - 1) {
+                    const secondHalfStart = yearPortfolioValues[midYearIndex].value;
+                    const secondHalfEnd = yearPortfolioValues[yearPortfolioValues.length - 1].value;
+                    const secondHalfReturn = ((secondHalfEnd - secondHalfStart) / secondHalfStart) * 100;
+                    halfYearData.push({
+                        year: parseInt(year),
+                        half: 2,
+                        label: `${year} H2`,
+                        return: secondHalfReturn
+                    });
+                }
+            }
+        }
+    });
+    
+    return halfYearData;
+}
+
+// Calculate quarterly returns for a portfolio (all quarters in the period)
+function calculateQuarterlyPortfolioReturns(portfolio) {
+    const filteredData = getFilteredData();
+    const quarterlyData = [];
+    
+    // Group data by year
+    const byYear = {};
+    filteredData.forEach(row => {
+        const year = row.date.getFullYear();
+        if (!byYear[year]) {
+            byYear[year] = [];
+        }
+        byYear[year].push(row);
+    });
+    
+    // Calculate quarterly returns for each year
+    Object.keys(byYear).sort().forEach(year => {
+        const yearData = byYear[year];
+        if (yearData.length >= 2) {
+            // Calculate portfolio values for the entire year
+            const yearPortfolioValues = calculatePortfolioValue(yearData, portfolio, state.startCapital);
+            
+            if (yearPortfolioValues.length >= 2) {
+                // Define quarter boundaries
+                const q1EndDate = new Date(parseInt(year), 2, 31); // End of March (month 2 = March)
+                const q2EndDate = new Date(parseInt(year), 5, 30); // End of June (month 5 = June)
+                const q3EndDate = new Date(parseInt(year), 8, 30); // End of September (month 8 = September)
+                
+                // Find indices closest to quarter boundaries
+                let q1Index = 0;
+                let q2Index = 0;
+                let q3Index = 0;
+                let minDiffQ1 = Infinity;
+                let minDiffQ2 = Infinity;
+                let minDiffQ3 = Infinity;
+                
+                yearPortfolioValues.forEach((pv, index) => {
+                    const diffQ1 = Math.abs(pv.date - q1EndDate);
+                    const diffQ2 = Math.abs(pv.date - q2EndDate);
+                    const diffQ3 = Math.abs(pv.date - q3EndDate);
+                    
+                    if (diffQ1 < minDiffQ1) {
+                        minDiffQ1 = diffQ1;
+                        q1Index = index;
+                    }
+                    if (diffQ2 < minDiffQ2) {
+                        minDiffQ2 = diffQ2;
+                        q2Index = index;
+                    }
+                    if (diffQ3 < minDiffQ3) {
+                        minDiffQ3 = diffQ3;
+                        q3Index = index;
+                    }
+                });
+                
+                // Calculate Q1 return (start of year to end of Q1)
+                if (q1Index > 0) {
+                    const q1Start = yearPortfolioValues[0].value;
+                    const q1End = yearPortfolioValues[q1Index].value;
+                    const q1Return = ((q1End - q1Start) / q1Start) * 100;
+                    quarterlyData.push({
+                        year: parseInt(year),
+                        quarter: 1,
+                        label: `${year} Q1`,
+                        return: q1Return
+                    });
+                }
+                
+                // Calculate Q2 return (end of Q1 to end of Q2)
+                if (q1Index < q2Index && q2Index < yearPortfolioValues.length) {
+                    const q2Start = yearPortfolioValues[q1Index].value;
+                    const q2End = yearPortfolioValues[q2Index].value;
+                    const q2Return = ((q2End - q2Start) / q2Start) * 100;
+                    quarterlyData.push({
+                        year: parseInt(year),
+                        quarter: 2,
+                        label: `${year} Q2`,
+                        return: q2Return
+                    });
+                }
+                
+                // Calculate Q3 return (end of Q2 to end of Q3)
+                if (q2Index < q3Index && q3Index < yearPortfolioValues.length) {
+                    const q3Start = yearPortfolioValues[q2Index].value;
+                    const q3End = yearPortfolioValues[q3Index].value;
+                    const q3Return = ((q3End - q3Start) / q3Start) * 100;
+                    quarterlyData.push({
+                        year: parseInt(year),
+                        quarter: 3,
+                        label: `${year} Q3`,
+                        return: q3Return
+                    });
+                }
+                
+                // Calculate Q4 return (end of Q3 to end of year)
+                if (q3Index < yearPortfolioValues.length - 1) {
+                    const q4Start = yearPortfolioValues[q3Index].value;
+                    const q4End = yearPortfolioValues[yearPortfolioValues.length - 1].value;
+                    const q4Return = ((q4End - q4Start) / q4Start) * 100;
+                    quarterlyData.push({
+                        year: parseInt(year),
+                        quarter: 4,
+                        label: `${year} Q4`,
+                        return: q4Return
+                    });
+                }
+            }
+        }
+    });
+    
+    return quarterlyData;
+}
+
 // Calculate mean and standard deviation
 function calculateStats(data) {
     if (data.length === 0) return { mean: 0, stddev: 0 };
@@ -4319,20 +4523,34 @@ function createPyramidChart() {
     const portfolioType = portfolioBtn ? portfolioBtn.dataset.pyramidPortfolio : 'new';
     const portfolio = portfolioType === 'new' ? state.newPortfolio : state.currentPortfolio;
     
-    // Calculate yearly returns
-    const yearlyData = calculateYearlyPortfolioReturns(portfolio);
+    // Check which period mode is enabled
+    const periodToggleFull = document.getElementById('period-toggle-full');
+    const periodToggleHalf = document.getElementById('period-toggle-half');
+    const periodToggleQuarter = document.getElementById('period-toggle-quarter');
+    const useHalfYears = periodToggleHalf ? periodToggleHalf.classList.contains('active') : false;
+    const useQuarters = periodToggleQuarter ? periodToggleQuarter.classList.contains('active') : false;
     
-    if (yearlyData.length === 0) {
+    // Calculate returns based on selected period type
+    let returnData;
+    if (useQuarters) {
+        returnData = calculateQuarterlyPortfolioReturns(portfolio);
+    } else if (useHalfYears) {
+        returnData = calculateHalfYearPortfolioReturns(portfolio);
+    } else {
+        returnData = calculateYearlyPortfolioReturns(portfolio);
+    }
+    
+    if (returnData.length === 0) {
         container.innerHTML = '<p>Ingen data tilgjengelig</p>';
         return;
     }
     
     // Calculate statistics
-    const stats = calculateStats(yearlyData);
+    const stats = calculateStats(returnData);
     
-    // Find best and worst year
-    const bestYear = yearlyData.reduce((best, current) => current.return > best.return ? current : best, yearlyData[0]);
-    const worstYear = yearlyData.reduce((worst, current) => current.return < worst.return ? current : worst, yearlyData[0]);
+    // Find best and worst period
+    const bestPeriod = returnData.reduce((best, current) => current.return > best.return ? current : best, returnData[0]);
+    const worstPeriod = returnData.reduce((worst, current) => current.return < worst.return ? current : worst, returnData[0]);
     
     // Create bins (intervals of 10%, centered on 0%)
     // Bin structure: -45 to -35, -35 to -25, ..., -5 to 5 (center), 5 to 15, ..., 35 to 45
@@ -4353,7 +4571,7 @@ function createPyramidChart() {
     }
     
     // Assign data points to bins and count
-    yearlyData.forEach(item => {
+    returnData.forEach(item => {
         const returnValue = item.return;
         // Find which bin this return belongs to
         for (let binStart = minBin; binStart < maxBin; binStart += binWidth) {
@@ -4379,21 +4597,29 @@ function createPyramidChart() {
     if (meanEl) meanEl.textContent = stats.mean.toFixed(2) + '%';
     if (stddevEl) stddevEl.textContent = stats.stddev.toFixed(2) + '%';
     if (mostFrequentEl) mostFrequentEl.textContent = `${mostFrequentBin.start}% - ${mostFrequentBin.end}%`;
-    if (worstYearEl) worstYearEl.textContent = `${worstYear.year} (${worstYear.return.toFixed(2)}%)`;
-    if (bestYearEl) bestYearEl.textContent = `${bestYear.year} (${bestYear.return.toFixed(2)}%)`;
+    if (worstYearEl) {
+        const worstLabel = (useQuarters || useHalfYears) ? worstPeriod.label : worstPeriod.year.toString();
+        worstYearEl.textContent = `${worstLabel} (${worstPeriod.return.toFixed(2)}%)`;
+    }
+    if (bestYearEl) {
+        const bestLabel = (useQuarters || useHalfYears) ? bestPeriod.label : bestPeriod.year.toString();
+        bestYearEl.textContent = `${bestLabel} (${bestPeriod.return.toFixed(2)}%)`;
+    }
     
     // Sort items within each bin by return (highest first)
     Object.keys(bins).forEach(binKey => {
         bins[binKey].items.sort((a, b) => b.return - a.return);
     });
     
-    // Calculate static height based on maximum possible years in dataset
+    // Calculate static height based on maximum possible periods in dataset
     // Use all data (not filtered) to ensure consistent height regardless of period selection
     const allYears = new Set();
     state.data.forEach(row => {
         allYears.add(row.date.getFullYear());
     });
-    const maxPossibleYears = allYears.size;
+    // If using quarters, we have approximately 4x the number of periods
+    // If using half-years, we have approximately 2x the number of periods
+    const maxPossiblePeriods = useQuarters ? allYears.size * 4 : (useHalfYears ? allYears.size * 2 : allYears.size);
     
     // Find current max height for this portfolio
     const currentMaxHeight = Math.max(...Object.values(bins).map(bin => bin.items.length));
@@ -4413,8 +4639,8 @@ function createPyramidChart() {
     // Use container height minus padding and labels
     const usableHeight = containerHeight - topPadding - bottomPadding - xAxisLabelHeight - (containerPadding * 2); // Account for container padding
     
-    // Calculate box height: (usable height) / (max possible years + some margin)
-    const baseBoxHeight = Math.max(16, Math.min(22.8, Math.floor(usableHeight / (maxPossibleYears + 2))));
+    // Calculate box height: (usable height) / (max possible periods + some margin)
+    const baseBoxHeight = Math.max(16, Math.min(22.8, Math.floor(usableHeight / (maxPossiblePeriods + 2))));
     const boxHeight = baseBoxHeight * 1.1 * 1.1 * 1.2; // Increase height by 45.2% total (10% + 10% + 20%)
     const totalBoxHeight = boxHeight + (boxMargin * 2);
     
@@ -4445,15 +4671,18 @@ function createPyramidChart() {
                                     colorStyle = 'background-color: oklch(0.65 0.15 15);'; // Light red (rose-400)
                                 }
                                 
+                                const displayLabel = (useQuarters || useHalfYears) ? item.label : item.year.toString();
+                                const tooltipLabel = (useQuarters || useHalfYears) ? `${item.label}` : `År: ${item.year}`;
+                                
                                 return `
                                     <div 
                                         class="pyramid-box" 
                                         style="width: 90%; height: ${boxHeight}px; margin: ${boxMargin}px 0; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: ${Math.max(8, boxHeight * 0.4 * 1.1 * 1.1 * 1.2)}px; font-weight: 500; color: white; cursor: pointer; position: relative; flex-shrink: 0; ${colorStyle}"
                                         data-year="${item.year}"
                                         data-return="${item.return.toFixed(2)}"
-                                        title="År: ${item.year}, Avkastning: ${item.return.toFixed(2)}%"
+                                        title="${tooltipLabel}, Avkastning: ${item.return.toFixed(2)}%"
                                     >
-                                        ${item.year}
+                                        ${displayLabel}
                                     </div>
                                 `;
                             }).join('')}
@@ -4599,13 +4828,8 @@ function createKPIStackedBarChart(ctx, tabNumber) {
         // For 'year-by-year', show all history from 1994 onwards
         filteredYears = allYearsWithData.filter(y => y.year >= 1994);
     } else if (state.selectedPeriod === 'max') {
-        // FIX: TEST - For Max period, show only last 20 years instead of all years
-        // This tests if the number of categories (32) is causing the rendering issue
-        if (allYearsWithData.length > 20) {
-            filteredYears = allYearsWithData.slice(-20);
-        } else {
-            filteredYears = allYearsWithData.filter(y => y.year >= 1994);
-        }
+        // For Max period, show all years from 1994 onwards
+        filteredYears = allYearsWithData.filter(y => y.year >= 1994);
     }
     // Note: If no period matches, filteredYears will remain as allYearsWithData (showing all years)
     
@@ -5158,9 +5382,30 @@ function updateKPIInfoCards(yearlyData, startYear) {
 function createAssetsGrid() {
     const container = document.getElementById('assets-grid');
     const filteredData = getFilteredData();
+    
+    // Debug: Log data range
+    if (filteredData.length > 0) {
+        const firstDate = filteredData[0].date;
+        const lastDate = filteredData[filteredData.length - 1].date;
+        console.log('createAssetsGrid - Data range:', {
+            firstYear: firstDate.getFullYear(),
+            lastYear: lastDate.getFullYear(),
+            totalDataPoints: filteredData.length,
+            period: state.selectedPeriod
+        });
+    }
+    
     const yearlyReturns = calculateYearlyReturns(filteredData);
     
+    // Debug: Log years found
     const years = Object.keys(yearlyReturns).sort();
+    console.log('createAssetsGrid - Years found:', {
+        years: years,
+        count: years.length,
+        firstYear: years[0],
+        lastYear: years[years.length - 1]
+    });
+    
     const numYears = years.length;
     
     // Get the actual container width (more accurate than viewport)
@@ -5177,11 +5422,15 @@ function createAssetsGrid() {
     if (state.selectedPeriod === 'max') {
         // For "max" period: Fit all years without scrolling but fill width and height
         // Use minmax with lower minimum width to ensure all years fit while still filling space
-        const minColumnWidth = 40; // Lower minimum for max period
+        const minColumnWidth = 25; // Lower minimum for max period (reduced from 40 to fit more years)
         const calculatedWidth = Math.floor(availableWidth / numYears);
         const optimalColumnWidth = Math.max(minColumnWidth, calculatedWidth);
         gridTemplateColumns = `repeat(${numYears}, minmax(${optimalColumnWidth}px, 1fr))`;
+        
+        // Add class to container for max period styling
+        container.classList.add('max-period');
     } else {
+        container.classList.remove('max-period');
         // For other periods (like "10y"): Fill screen with flexible larger columns
         const minColumnWidth = 65;
         const maxColumnWidth = 250;
@@ -5203,11 +5452,11 @@ function createAssetsGrid() {
         
         // Rank assets - all 6 asset classes (including KPI)
         const assets = [
-            { name: 'Aksjer Global', return: returns.stocks, class: 'stocks' },
-            { name: 'Bankinnskudd', return: returns.riskFree, class: 'risikofri' },
-            { name: 'High Yield', return: returns.highYield, class: 'highyield' },
-            { name: 'Aksjer Norden', return: returns.nordicStocks, class: 'nordicstocks' },
-            { name: 'Aksjer Emerging Markets', return: returns.emergingMarkets, class: 'emergingmarkets' },
+            { name: 'Likviditet/kontanter', return: returns.stocks, class: 'stocks' },
+            { name: 'Renter', return: returns.riskFree, class: 'risikofri' },
+            { name: 'Aksjer', return: returns.highYield, class: 'highyield' },
+            { name: 'Alternative strategier', return: returns.nordicStocks, class: 'nordicstocks' },
+            { name: 'Annet', return: returns.emergingMarkets, class: 'emergingmarkets' },
             { name: 'KPI', return: returns.kpi || 0, class: 'kpi' }
         ].sort((a, b) => b.return - a.return);
         
@@ -5611,6 +5860,16 @@ function setupEventListeners() {
     pyramidPortfolioButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             pyramidPortfolioButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            createPyramidChart();
+        });
+    });
+    
+    // Pyramid period toggle buttons (whole year vs half year)
+    const periodToggleButtons = document.querySelectorAll('.period-toggle-btn');
+    periodToggleButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            periodToggleButtons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             createPyramidChart();
         });
@@ -6314,6 +6573,147 @@ function calculateYearlyPortfolioMetrics(year, portfolio) {
     return { return: yearlyReturn, cumulativeReturn: cumulativeReturn };
 }
 
+// Calculate half-year returns for a portfolio
+function calculateHalfYearReturns(year, portfolio) {
+    // Get all data for the year
+    const yearData = state.data.filter(row => {
+        const rowYear = row.date.getFullYear();
+        return rowYear === year;
+    });
+    
+    if (yearData.length < 2) {
+        return { firstHalf: null, secondHalf: null };
+    }
+    
+    // Calculate portfolio values for the entire year
+    const yearPortfolioValues = calculatePortfolioValue(yearData, portfolio, state.startCapital);
+    
+    if (yearPortfolioValues.length < 2) {
+        return { firstHalf: null, secondHalf: null };
+    }
+    
+    // Find the midpoint of the year (end of June / start of July)
+    // We'll use the data point closest to June 30
+    const midYearDate = new Date(year, 5, 30); // Month 5 = June, day 30
+    
+    // Find the index closest to mid-year
+    let midYearIndex = 0;
+    let minDiff = Infinity;
+    yearPortfolioValues.forEach((pv, index) => {
+        const diff = Math.abs(pv.date - midYearDate);
+        if (diff < minDiff) {
+            minDiff = diff;
+            midYearIndex = index;
+        }
+    });
+    
+    let firstHalfReturn = null;
+    let secondHalfReturn = null;
+    
+    // Calculate first half return (start of year to mid-year)
+    if (midYearIndex > 0) {
+        const firstHalfStart = yearPortfolioValues[0].value;
+        const firstHalfEnd = yearPortfolioValues[midYearIndex].value;
+        firstHalfReturn = ((firstHalfEnd - firstHalfStart) / firstHalfStart) * 100;
+    }
+    
+    // Calculate second half return (mid-year to end of year)
+    if (midYearIndex < yearPortfolioValues.length - 1) {
+        const secondHalfStart = yearPortfolioValues[midYearIndex].value;
+        const secondHalfEnd = yearPortfolioValues[yearPortfolioValues.length - 1].value;
+        secondHalfReturn = ((secondHalfEnd - secondHalfStart) / secondHalfStart) * 100;
+    }
+    
+    return { firstHalf: firstHalfReturn, secondHalf: secondHalfReturn };
+}
+
+// Calculate quarterly returns for a portfolio
+function calculateQuarterlyReturns(year, portfolio) {
+    // Get all data for the year
+    const yearData = state.data.filter(row => {
+        const rowYear = row.date.getFullYear();
+        return rowYear === year;
+    });
+    
+    if (yearData.length < 2) {
+        return { q1: null, q2: null, q3: null, q4: null };
+    }
+    
+    // Calculate portfolio values for the entire year
+    const yearPortfolioValues = calculatePortfolioValue(yearData, portfolio, state.startCapital);
+    
+    if (yearPortfolioValues.length < 2) {
+        return { q1: null, q2: null, q3: null, q4: null };
+    }
+    
+    // Define quarter boundaries
+    const q1EndDate = new Date(year, 2, 31); // End of March (month 2 = March)
+    const q2EndDate = new Date(year, 5, 30); // End of June (month 5 = June)
+    const q3EndDate = new Date(year, 8, 30); // End of September (month 8 = September)
+    
+    // Find indices closest to quarter boundaries
+    let q1Index = 0;
+    let q2Index = 0;
+    let q3Index = 0;
+    let minDiffQ1 = Infinity;
+    let minDiffQ2 = Infinity;
+    let minDiffQ3 = Infinity;
+    
+    yearPortfolioValues.forEach((pv, index) => {
+        const diffQ1 = Math.abs(pv.date - q1EndDate);
+        const diffQ2 = Math.abs(pv.date - q2EndDate);
+        const diffQ3 = Math.abs(pv.date - q3EndDate);
+        
+        if (diffQ1 < minDiffQ1) {
+            minDiffQ1 = diffQ1;
+            q1Index = index;
+        }
+        if (diffQ2 < minDiffQ2) {
+            minDiffQ2 = diffQ2;
+            q2Index = index;
+        }
+        if (diffQ3 < minDiffQ3) {
+            minDiffQ3 = diffQ3;
+            q3Index = index;
+        }
+    });
+    
+    let q1Return = null;
+    let q2Return = null;
+    let q3Return = null;
+    let q4Return = null;
+    
+    // Calculate Q1 return (start of year to end of Q1)
+    if (q1Index > 0) {
+        const q1Start = yearPortfolioValues[0].value;
+        const q1End = yearPortfolioValues[q1Index].value;
+        q1Return = ((q1End - q1Start) / q1Start) * 100;
+    }
+    
+    // Calculate Q2 return (end of Q1 to end of Q2)
+    if (q1Index < q2Index && q2Index < yearPortfolioValues.length) {
+        const q2Start = yearPortfolioValues[q1Index].value;
+        const q2End = yearPortfolioValues[q2Index].value;
+        q2Return = ((q2End - q2Start) / q2Start) * 100;
+    }
+    
+    // Calculate Q3 return (end of Q2 to end of Q3)
+    if (q2Index < q3Index && q3Index < yearPortfolioValues.length) {
+        const q3Start = yearPortfolioValues[q2Index].value;
+        const q3End = yearPortfolioValues[q3Index].value;
+        q3Return = ((q3End - q3Start) / q3Start) * 100;
+    }
+    
+    // Calculate Q4 return (end of Q3 to end of year)
+    if (q3Index < yearPortfolioValues.length - 1) {
+        const q4Start = yearPortfolioValues[q3Index].value;
+        const q4End = yearPortfolioValues[yearPortfolioValues.length - 1].value;
+        q4Return = ((q4End - q4Start) / q4Start) * 100;
+    }
+    
+    return { q1: q1Return, q2: q2Return, q3: q3Return, q4: q4Return };
+}
+
 // Populate year by year table
 function populateYearByYearTable(tableBody) {
     tableBody.innerHTML = '';
@@ -6337,6 +6737,8 @@ function populateYearByYearTable(tableBody) {
     years.forEach(year => {
         const currentMetrics = calculateYearlyPortfolioMetrics(year, state.currentPortfolio);
         const newMetrics = calculateYearlyPortfolioMetrics(year, state.newPortfolio);
+        const halfYearReturns = calculateHalfYearReturns(year, state.newPortfolio);
+        const quarterlyReturns = calculateQuarterlyReturns(year, state.newPortfolio);
         
         const row = document.createElement('tr');
         
@@ -6371,11 +6773,47 @@ function populateYearByYearTable(tableBody) {
             ? formatPercent(newMetrics.cumulativeReturn) 
             : '-';
         
+        const firstHalfCell = document.createElement('td');
+        firstHalfCell.textContent = halfYearReturns.firstHalf !== null 
+            ? formatPercent(halfYearReturns.firstHalf) 
+            : '-';
+        
+        const secondHalfCell = document.createElement('td');
+        secondHalfCell.textContent = halfYearReturns.secondHalf !== null 
+            ? formatPercent(halfYearReturns.secondHalf) 
+            : '-';
+        
+        const q1Cell = document.createElement('td');
+        q1Cell.textContent = quarterlyReturns.q1 !== null 
+            ? formatPercent(quarterlyReturns.q1) 
+            : '-';
+        
+        const q2Cell = document.createElement('td');
+        q2Cell.textContent = quarterlyReturns.q2 !== null 
+            ? formatPercent(quarterlyReturns.q2) 
+            : '-';
+        
+        const q3Cell = document.createElement('td');
+        q3Cell.textContent = quarterlyReturns.q3 !== null 
+            ? formatPercent(quarterlyReturns.q3) 
+            : '-';
+        
+        const q4Cell = document.createElement('td');
+        q4Cell.textContent = quarterlyReturns.q4 !== null 
+            ? formatPercent(quarterlyReturns.q4) 
+            : '-';
+        
         row.appendChild(yearCell);
         row.appendChild(currentReturnCell);
         row.appendChild(currentCumulativeCell);
         row.appendChild(newReturnCell);
         row.appendChild(newCumulativeCell);
+        row.appendChild(firstHalfCell);
+        row.appendChild(secondHalfCell);
+        row.appendChild(q1Cell);
+        row.appendChild(q2Cell);
+        row.appendChild(q3Cell);
+        row.appendChild(q4Cell);
         
         tableBody.appendChild(row);
     });
@@ -6392,12 +6830,34 @@ async function init() {
             const csv = await response.text();
             state.data = parseCSV(csv);
             console.log('Loaded data from historiske kurser2.csv');
+            
+            // Debug: Log data range
+            if (state.data.length > 0) {
+                const firstDate = state.data[0].date;
+                const lastDate = state.data[state.data.length - 1].date;
+                console.log('CSV Data range:', {
+                    firstYear: firstDate.getFullYear(),
+                    lastYear: lastDate.getFullYear(),
+                    totalDataPoints: state.data.length
+                });
+            }
         } else {
             throw new Error('Could not load CSV');
         }
     } catch (error) {
         console.log('Could not load historiske kurser2.csv, using embedded CSV data');
         state.data = parseCSV(csvData);
+        
+        // Debug: Log embedded data range
+        if (state.data.length > 0) {
+            const firstDate = state.data[0].date;
+            const lastDate = state.data[state.data.length - 1].date;
+            console.log('Embedded CSV Data range:', {
+                firstYear: firstDate.getFullYear(),
+                lastYear: lastDate.getFullYear(),
+                totalDataPoints: state.data.length
+            });
+        }
     }
     
     // Setup UI

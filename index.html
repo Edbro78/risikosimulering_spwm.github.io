@@ -154,46 +154,46 @@
                                 </div>
                             </div>
                             <div class="slider-container">
-                                <!-- Aksjer Global -->
+                                <!-- Likviditet/kontanter -->
                                 <div class="slider-item">
                                     <div class="slider-header">
-                                        <label for="current-stocks">Aksjer Global</label>
+                                        <label for="current-stocks">Likviditet/kontanter</label>
                                         <span class="slider-value" id="current-stocks-value">20.0%</span>
                                     </div>
                                     <input type="range" id="current-stocks" min="0" max="100" value="20" step="0.1" class="slider">
                                 </div>
                                 
-                                <!-- Bank (Risikofri) -->
+                                <!-- Renter -->
                                 <div class="slider-item">
                                     <div class="slider-header">
-                                        <label for="current-riskfree">Bankinnskudd</label>
+                                        <label for="current-riskfree">Renter</label>
                                         <span class="slider-value" id="current-riskfree-value">20.0%</span>
                                     </div>
                                     <input type="range" id="current-riskfree" min="0" max="100" value="20" step="0.1" class="slider">
                                 </div>
                                 
-                                <!-- High Yield -->
+                                <!-- Aksjer -->
                                 <div class="slider-item">
                                     <div class="slider-header">
-                                        <label for="current-highyield">High Yield</label>
+                                        <label for="current-highyield">Aksjer</label>
                                         <span class="slider-value" id="current-highyield-value">20.0%</span>
                                     </div>
                                     <input type="range" id="current-highyield" min="0" max="100" value="20" step="0.1" class="slider">
                                 </div>
                                 
-                                <!-- Nordiske Aksjer -->
+                                <!-- Alternative strategier -->
                                 <div class="slider-item">
                                     <div class="slider-header">
-                                        <label for="current-nordic">Aksjer Norden</label>
+                                        <label for="current-nordic">Alternative strategier</label>
                                         <span class="slider-value" id="current-nordic-value">20.0%</span>
                                     </div>
                                     <input type="range" id="current-nordic" min="0" max="100" value="20" step="0.1" class="slider">
                                 </div>
                                 
-                                <!-- Emerging Markets -->
+                                <!-- Annet -->
                                 <div class="slider-item">
                                     <div class="slider-header">
-                                        <label for="current-emerging">Aksjer Emerging Markets</label>
+                                        <label for="current-emerging">Annet</label>
                                         <span class="slider-value" id="current-emerging-value">20.0%</span>
                                     </div>
                                     <input type="range" id="current-emerging" min="0" max="100" value="20" step="0.1" class="slider">
@@ -239,46 +239,46 @@
                                 </div>
                             </div>
                             <div class="slider-container">
-                                <!-- Aksjer Global -->
+                                <!-- Likviditet/kontanter -->
                                 <div class="slider-item">
                                     <div class="slider-header">
-                                        <label for="new-stocks">Aksjer Global</label>
+                                        <label for="new-stocks">Likviditet/kontanter</label>
                                         <span class="slider-value" id="new-stocks-value">20.0%</span>
                                     </div>
                                     <input type="range" id="new-stocks" min="0" max="100" value="20" step="0.1" class="slider">
                                 </div>
                                 
-                                <!-- Bank (Risikofri) -->
+                                <!-- Renter -->
                                 <div class="slider-item">
                                     <div class="slider-header">
-                                        <label for="new-riskfree">Bankinnskudd</label>
+                                        <label for="new-riskfree">Renter</label>
                                         <span class="slider-value" id="new-riskfree-value">20.0%</span>
                                     </div>
                                     <input type="range" id="new-riskfree" min="0" max="100" value="20" step="0.1" class="slider">
                                 </div>
                                 
-                                <!-- High Yield -->
+                                <!-- Aksjer -->
                                 <div class="slider-item">
                                     <div class="slider-header">
-                                        <label for="new-highyield">High Yield</label>
+                                        <label for="new-highyield">Aksjer</label>
                                         <span class="slider-value" id="new-highyield-value">20.0%</span>
                                     </div>
                                     <input type="range" id="new-highyield" min="0" max="100" value="20" step="0.1" class="slider">
                                 </div>
                                 
-                                <!-- Nordiske Aksjer -->
+                                <!-- Alternative strategier -->
                                 <div class="slider-item">
                                     <div class="slider-header">
-                                        <label for="new-nordic">Aksjer Norden</label>
+                                        <label for="new-nordic">Alternative strategier</label>
                                         <span class="slider-value" id="new-nordic-value">20.0%</span>
                                     </div>
                                     <input type="range" id="new-nordic" min="0" max="100" value="20" step="0.1" class="slider">
                                 </div>
                                 
-                                <!-- Emerging Markets -->
+                                <!-- Annet -->
                                 <div class="slider-item">
                                     <div class="slider-header">
-                                        <label for="new-emerging">Aksjer Emerging Markets</label>
+                                        <label for="new-emerging">Annet</label>
                                         <span class="slider-value" id="new-emerging-value">20.0%</span>
                                     </div>
                                     <input type="range" id="new-emerging" min="0" max="100" value="20" step="0.1" class="slider">
@@ -761,6 +761,13 @@
                         <button class="selector-btn active" data-pyramid-portfolio="new" id="pyramid-portfolio-new">Ny Portefølje</button>
                         <button class="selector-btn" data-pyramid-portfolio="current" id="pyramid-portfolio-current">Dagens Portefølje</button>
                     </div>
+                    <div class="pyramid-period-toggle" style="display: flex; align-items: center; gap: 0; margin-left: 16px;">
+                        <div class="period-toggle-group" style="display: flex; gap: 2px; background: var(--secondary); padding: 2px; border-radius: var(--radius-md); width: fit-content; border: 1px solid var(--border);">
+                            <button class="period-toggle-btn active" data-period="full" id="period-toggle-full">Hele kalenderår</button>
+                            <button class="period-toggle-btn" data-period="half" id="period-toggle-half">Halve kalenderår</button>
+                            <button class="period-toggle-btn" data-period="quarter" id="period-toggle-quarter">Avkastning per kvartal</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="pyramid-chart-container" id="pyramid-chart-container">
                     <!-- Chart will be rendered here -->
@@ -795,23 +802,23 @@
                     <div class="legend">
                         <div class="legend-item">
                             <span class="legend-color stocks"></span>
-                            <span>Aksjer Global</span>
+                            <span>Likviditet/kontanter</span>
                         </div>
                         <div class="legend-item">
                             <span class="legend-color risikofri"></span>
-                            <span>Bankinnskudd</span>
+                            <span>Renter</span>
                         </div>
                         <div class="legend-item">
                             <span class="legend-color highyield"></span>
-                            <span>High Yield</span>
+                            <span>Aksjer</span>
                         </div>
                         <div class="legend-item">
                             <span class="legend-color nordicstocks"></span>
-                            <span>Aksjer Norden</span>
+                            <span>Alternative strategier</span>
                         </div>
                         <div class="legend-item">
                             <span class="legend-color emergingmarkets"></span>
-                            <span>Aksjer Emerging Markets</span>
+                            <span>Annet</span>
                         </div>
                         <div class="legend-item">
                             <span class="legend-color kpi"></span>
@@ -953,6 +960,12 @@
                                 <th>Akkumulert avkastning<br>Dagens Portefølje</th>
                                 <th>Avkastning<br>Ny Portefølje</th>
                                 <th>Akkumulert avkastning<br>Ny Portefølje</th>
+                                <th>Avkastning<br>første halvår</th>
+                                <th>Avkastning<br>andre halvår</th>
+                                <th>Avkastning<br>Q1</th>
+                                <th>Avkastning<br>Q2</th>
+                                <th>Avkastning<br>Q3</th>
+                                <th>Avkastning<br>Q4</th>
                             </tr>
                         </thead>
                         <tbody id="year-by-year-table-body">
