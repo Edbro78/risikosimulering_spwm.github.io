@@ -4555,9 +4555,9 @@ function createPyramidChart() {
         maxBin = 18;
         binWidth = 1;
     } else {
-        // For full year: -45% to +45% with 10% intervals (original)
-        minBin = -45;
-        maxBin = 45;
+        // For full year: -50% to +50% with 10% intervals
+        minBin = -50;
+        maxBin = 50;
         binWidth = 10;
     }
     
@@ -4791,39 +4791,19 @@ function createPyramidChart() {
         
         box.addEventListener('mouseenter', function(e) {
             if (isHalfYearOrQuarter) {
-                // For half years and quarters: scale both box and text equally
+                // For half years and quarters: scale box but don't show text
                 const currentHeight = parseFloat(this.style.height) || parseFloat(originalHeight) || 20;
                 const currentWidth = parseFloat(this.style.width) || 90; // 90% is default
                 
-                const currentFontSize = parseFloat(this.style.fontSize) || 0;
-                let newFontSize;
-                const scaleFactor = 2.5; // Increased from 1.5 to 2.5 for better readability
-                
-                if (currentFontSize === 0 || this.style.fontSize === '0px') {
-                    // Calculate font size that will scale proportionally with the box
-                    const boxHeight = parseFloat(this.style.height) || 20;
-                    // Font size should be proportional to box height, but smaller for readability
-                    const baseFontSize = Math.max(8, boxHeight * 0.35); // Reduced from 0.5 to 0.35
-                    newFontSize = baseFontSize * scaleFactor * 0.6; // Scale up by scaleFactor, then reduce by 40%
-                    this.style.fontSize = newFontSize + 'px';
-                    // Restore content if it was empty
-                    if (!this.textContent.trim() && originalContent) {
-                        this.textContent = originalContent;
-                    }
-                } else {
-                    // If text is already visible, scale it up proportionally
-                    newFontSize = currentFontSize * scaleFactor * 0.6; // Scale up by scaleFactor, then reduce by 40%
-                    this.style.fontSize = newFontSize + 'px';
-                }
-                
-                // Calculate width based on text size to ensure box expands to fit text
-                // Use font size to determine appropriate width multiplier
-                // Font size increases by scaleFactor, so width should also increase proportionally
-                const widthMultiplier = scaleFactor; // Same as height and font size increase
+                const scaleFactor = 2.5; // Scale factor for box enlargement
                 
                 // Increase box size by scaleFactor in both height and width
                 this.style.height = (currentHeight * scaleFactor) + 'px';
-                this.style.width = (currentWidth * widthMultiplier) + '%';
+                this.style.width = (currentWidth * scaleFactor) + '%';
+                
+                // Keep text hidden (don't show text on hover)
+                this.style.fontSize = '0px';
+                this.textContent = '';
             } else {
                 // For full year: show text if needed
                 const currentFontSize = parseFloat(this.style.fontSize) || 0;
