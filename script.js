@@ -12,18 +12,18 @@ const state = {
     data: [],
     startCapital: 10000000, // 10 MNOK
     currentPortfolio: {
-        stocks: 20, // % - Aksjer Global
-        riskFree: 20, // % - Bank (Risikofri)
-        highYield: 20, // % - High Yield
-        nordicStocks: 20, // % - Nordiske aksjer
-        emergingMarkets: 20 // % - Emerging Markets
+        stocks: 10, // % - Likviditet/kontanter (20% * 0.5)
+        riskFree: 40, // % - Renter (80% * 0.5)
+        highYield: 40, // % - Aksjer (80% * 0.5)
+        nordicStocks: 4, // % - Alternative strategier (20% * 0.2)
+        emergingMarkets: 6 // % - Annet (20% * 0.3)
     },
     newPortfolio: {
-        stocks: 20, // % - Aksjer Global
-        riskFree: 20, // % - Bank (Risikofri)
-        highYield: 20, // % - High Yield
-        nordicStocks: 20, // % - Nordiske aksjer
-        emergingMarkets: 20 // % - Emerging Markets
+        stocks: 27.5, // % - Likviditet/kontanter (55% * 0.5)
+        riskFree: 22.5, // % - Renter (45% * 0.5)
+        highYield: 22.5, // % - Aksjer (45% * 0.5)
+        nordicStocks: 11, // % - Alternative strategier (55% * 0.2)
+        emergingMarkets: 16.5 // % - Annet (55% * 0.3)
     },
     charts: {
         overview: null,
@@ -269,33 +269,40 @@ function parseCSV(csvString) {
 // Period Filtering
 // ========================================
 function getFilteredData() {
-    const now = new Date();
     const data = state.data;
     
     if (data.length === 0) return [];
     
-    let startDate;
+    // Get unique years from data (sorted)
+    const uniqueYears = new Set();
+    data.forEach(row => uniqueYears.add(row.date.getFullYear()));
+    const sortedYears = Array.from(uniqueYears).sort((a, b) => a - b);
+    
+    if (sortedYears.length === 0) return data;
+    
+    const lastYear = sortedYears[sortedYears.length - 1];
+    let startYear;
     
     switch (state.selectedPeriod) {
         case 'ytd':
-            // Year to date - from January 1st of current year
-            startDate = new Date(now.getFullYear(), 0, 1);
+            // Year to date - from January 1st of last year in data
+            startYear = lastYear;
             break;
         case '12m':
-            // Last 12 months
-            startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+            // Last 12 months - use last year in data
+            startYear = lastYear;
             break;
         case '3y':
-            // Last 3 years
-            startDate = new Date(now.getFullYear() - 3, now.getMonth(), now.getDate());
+            // Last 3 years - get the last 3 years from data
+            startYear = sortedYears.length >= 3 ? sortedYears[sortedYears.length - 3] : sortedYears[0];
             break;
         case '5y':
-            // Last 5 years
-            startDate = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate());
+            // Last 5 years - get the last 5 years from data
+            startYear = sortedYears.length >= 5 ? sortedYears[sortedYears.length - 5] : sortedYears[0];
             break;
         case '10y':
-            // Last 10 years
-            startDate = new Date(now.getFullYear() - 10, now.getMonth(), now.getDate());
+            // Last 10 years - get the last 10 years from data
+            startYear = sortedYears.length >= 10 ? sortedYears[sortedYears.length - 10] : sortedYears[0];
             break;
         case 'max':
         default:
@@ -303,7 +310,8 @@ function getFilteredData() {
             return data;
     }
     
-    // Filter data from startDate onwards
+    // Filter data from January 1st of startYear onwards
+    const startDate = new Date(startYear, 0, 1);
     const filteredData = data.filter(row => row.date >= startDate);
     
     // If no data matches, return at least the last data point
@@ -4272,35 +4280,57 @@ function createNurseChart(tabNumber = 1) {
 // ========================================
 
 // Calculate yearly returns for a portfolio
+// Uses same logic as "År for år" table
 function calculateYearlyPortfolioReturns(portfolio) {
-    const filteredData = getFilteredData();
     const yearlyData = [];
     
-    // Group data by year
-    const byYear = {};
-    filteredData.forEach(row => {
-        const year = row.date.getFullYear();
-        if (!byYear[year]) {
-            byYear[year] = [];
-        }
-        byYear[year].push(row);
-    });
+    // Generate years exactly like populateYearByYearTable does
+    // populateYearByYearTable always generates years from 1994 to 2025
+    let minYear = 1994;
+    let maxYear = 2025;
+    if (state.data.length > 0) {
+        const firstYear = state.data[0].date.getFullYear();
+        const lastYear = state.data[state.data.length - 1].date.getFullYear();
+        minYear = Math.min(1994, firstYear);
+        // Always use 2025 as maxYear, same as populateYearByYearTable
+        maxYear = 2025;
+    }
     
-    // Calculate yearly return for each year
-    Object.keys(byYear).sort().forEach(year => {
-        const yearData = byYear[year];
-        if (yearData.length >= 2) {
-            // Calculate portfolio values for the year
-            const portfolioValues = calculatePortfolioValue(yearData, portfolio, state.startCapital);
-            if (portfolioValues.length >= 2) {
-                const startValue = portfolioValues[0].value;
-                const endValue = portfolioValues[portfolioValues.length - 1].value;
-                const yearlyReturn = ((endValue - startValue) / startValue) * 100;
-                yearlyData.push({
-                    year: parseInt(year),
-                    return: yearlyReturn
-                });
-            }
+    // Generate all years from minYear to maxYear (same as populateYearByYearTable)
+    const allYears = [];
+    for (let year = minYear; year <= maxYear; year++) {
+        allYears.push(year);
+    }
+    
+    // Determine which years to include based on selected period
+    let targetYears = allYears;
+    if (state.selectedPeriod === '3y') {
+        // For "siste 3 år", get the last 3 years: 2023, 2024, 2025
+        targetYears = allYears.slice(-3);
+    } else if (state.selectedPeriod === '5y') {
+        targetYears = allYears.slice(-5);
+    } else if (state.selectedPeriod === '10y') {
+        targetYears = allYears.slice(-10);
+    } else if (state.selectedPeriod === '12m' || state.selectedPeriod === 'ytd') {
+        targetYears = allYears.slice(-1);
+    }
+    // For 'max', use all years
+    
+    // Calculate yearly return for each target year using same function as "År for år" table
+    targetYears.forEach(year => {
+        const metrics = calculateYearlyPortfolioMetrics(year, portfolio);
+        // Include year even if return is null (will show as 0% or handle in chart)
+        if (metrics.return !== null) {
+            yearlyData.push({
+                year: year,
+                return: metrics.return
+            });
+        } else {
+            // If return is null, still include the year with 0% return
+            yearlyData.push({
+                year: year,
+                return: 0
+            });
         }
     });
     
@@ -4308,68 +4338,58 @@ function calculateYearlyPortfolioReturns(portfolio) {
 }
 
 // Calculate half-year returns for a portfolio (all half-years in the period)
+// Uses same logic as "År for år" table
 function calculateHalfYearPortfolioReturns(portfolio) {
-    const filteredData = getFilteredData();
     const halfYearData = [];
     
-    // Group data by year
-    const byYear = {};
-    filteredData.forEach(row => {
-        const year = row.date.getFullYear();
-        if (!byYear[year]) {
-            byYear[year] = [];
-        }
-        byYear[year].push(row);
-    });
+    // Generate years exactly like populateYearByYearTable does
+    // populateYearByYearTable always generates years from 1994 to 2025
+    let minYear = 1994;
+    let maxYear = 2025;
+    if (state.data.length > 0) {
+        const firstYear = state.data[0].date.getFullYear();
+        minYear = Math.min(1994, firstYear);
+        // Always use 2025 as maxYear, same as populateYearByYearTable
+        maxYear = 2025;
+    }
     
-    // Calculate half-year returns for each year
-    Object.keys(byYear).sort().forEach(year => {
-        const yearData = byYear[year];
-        if (yearData.length >= 2) {
-            // Calculate portfolio values for the entire year
-            const yearPortfolioValues = calculatePortfolioValue(yearData, portfolio, state.startCapital);
-            
-            if (yearPortfolioValues.length >= 2) {
-                // Find the midpoint of the year (end of June / start of July)
-                const midYearDate = new Date(parseInt(year), 5, 30); // Month 5 = June, day 30
-                
-                // Find the index closest to mid-year
-                let midYearIndex = 0;
-                let minDiff = Infinity;
-                yearPortfolioValues.forEach((pv, index) => {
-                    const diff = Math.abs(pv.date - midYearDate);
-                    if (diff < minDiff) {
-                        minDiff = diff;
-                        midYearIndex = index;
-                    }
-                });
-                
-                // Calculate first half return (January to June)
-                if (midYearIndex > 0) {
-                    const firstHalfStart = yearPortfolioValues[0].value;
-                    const firstHalfEnd = yearPortfolioValues[midYearIndex].value;
-                    const firstHalfReturn = ((firstHalfEnd - firstHalfStart) / firstHalfStart) * 100;
-                    halfYearData.push({
-                        year: parseInt(year),
-                        half: 1,
-                        label: `${year} H1`,
-                        return: firstHalfReturn
-                    });
-                }
-                
-                // Calculate second half return (July to December)
-                if (midYearIndex < yearPortfolioValues.length - 1) {
-                    const secondHalfStart = yearPortfolioValues[midYearIndex].value;
-                    const secondHalfEnd = yearPortfolioValues[yearPortfolioValues.length - 1].value;
-                    const secondHalfReturn = ((secondHalfEnd - secondHalfStart) / secondHalfStart) * 100;
-                    halfYearData.push({
-                        year: parseInt(year),
-                        half: 2,
-                        label: `${year} H2`,
-                        return: secondHalfReturn
-                    });
-                }
-            }
+    // Generate all years from minYear to maxYear (same as populateYearByYearTable)
+    const allYears = [];
+    for (let year = minYear; year <= maxYear; year++) {
+        allYears.push(year);
+    }
+    
+    // Determine which years to include based on selected period
+    let targetYears = allYears;
+    if (state.selectedPeriod === '3y') {
+        targetYears = allYears.slice(-3);
+    } else if (state.selectedPeriod === '5y') {
+        targetYears = allYears.slice(-5);
+    } else if (state.selectedPeriod === '10y') {
+        targetYears = allYears.slice(-10);
+    } else if (state.selectedPeriod === '12m' || state.selectedPeriod === 'ytd') {
+        targetYears = allYears.slice(-1);
+    }
+    // For 'max', use all years
+    
+    // Calculate half-year returns for each target year using same function as "År for år" table
+    targetYears.forEach(year => {
+        const halfYearReturns = calculateHalfYearReturns(year, portfolio);
+        if (halfYearReturns.firstHalf !== null) {
+            halfYearData.push({
+                year: year,
+                half: 1,
+                label: `${year} H1`,
+                return: halfYearReturns.firstHalf
+            });
+        }
+        if (halfYearReturns.secondHalf !== null) {
+            halfYearData.push({
+                year: year,
+                half: 2,
+                label: `${year} H2`,
+                return: halfYearReturns.secondHalf
+            });
         }
     });
     
@@ -4377,114 +4397,86 @@ function calculateHalfYearPortfolioReturns(portfolio) {
 }
 
 // Calculate quarterly returns for a portfolio (all quarters in the period)
+// Uses same logic as "År for år" table
 function calculateQuarterlyPortfolioReturns(portfolio) {
-    const filteredData = getFilteredData();
     const quarterlyData = [];
     
-    // Group data by year
-    const byYear = {};
-    filteredData.forEach(row => {
-        const year = row.date.getFullYear();
-        if (!byYear[year]) {
-            byYear[year] = [];
-        }
-        byYear[year].push(row);
+    // Generate years exactly like populateYearByYearTable does
+    // populateYearByYearTable always generates years from 1994 to 2025
+    let minYear = 1994;
+    let maxYear = 2025;
+    if (state.data.length > 0) {
+        const firstYear = state.data[0].date.getFullYear();
+        minYear = Math.min(1994, firstYear);
+        // Always use 2025 as maxYear, same as populateYearByYearTable
+        maxYear = 2025;
+    }
+    
+    // Generate all years from minYear to maxYear (same as populateYearByYearTable)
+    const allYears = [];
+    for (let year = minYear; year <= maxYear; year++) {
+        allYears.push(year);
+    }
+    
+    // Determine which years to include based on selected period
+    let targetYears = allYears;
+    if (state.selectedPeriod === '3y') {
+        targetYears = allYears.slice(-3);
+    } else if (state.selectedPeriod === '5y') {
+        targetYears = allYears.slice(-5);
+    } else if (state.selectedPeriod === '10y') {
+        targetYears = allYears.slice(-10);
+    } else if (state.selectedPeriod === '12m' || state.selectedPeriod === 'ytd') {
+        targetYears = allYears.slice(-1);
+    }
+    // For 'max', use all years
+    
+    // Calculate quarterly returns for each target year using EXACT same function and portfolio as "År for år" table
+    // "År for år" table ALWAYS uses: calculateQuarterlyReturns(year, state.newPortfolio)
+    // We must use state.newPortfolio, NOT the selected portfolio, to match the table exactly
+    targetYears.forEach(year => {
+        // Use EXACT same call as "År for år" table uses - ALWAYS use state.newPortfolio
+        const quarterlyReturns = calculateQuarterlyReturns(year, state.newPortfolio);
+        
+        // Always include all 4 quarters - use same values as table shows
+        // If null, use 0 (table shows "-" but we need a number for the chart)
+        // MUST include all 4 quarters for every year, no exceptions
+        quarterlyData.push({
+            year: year,
+            quarter: 1,
+            label: `${year} Q1`,
+            return: quarterlyReturns.q1 !== null ? quarterlyReturns.q1 : 0
+        });
+        quarterlyData.push({
+            year: year,
+            quarter: 2,
+            label: `${year} Q2`,
+            return: quarterlyReturns.q2 !== null ? quarterlyReturns.q2 : 0
+        });
+        quarterlyData.push({
+            year: year,
+            quarter: 3,
+            label: `${year} Q3`,
+            return: quarterlyReturns.q3 !== null ? quarterlyReturns.q3 : 0
+        });
+        quarterlyData.push({
+            year: year,
+            quarter: 4,
+            label: `${year} Q4`,
+            return: quarterlyReturns.q4 !== null ? quarterlyReturns.q4 : 0
+        });
     });
     
-    // Calculate quarterly returns for each year
-    Object.keys(byYear).sort().forEach(year => {
-        const yearData = byYear[year];
-        if (yearData.length >= 2) {
-            // Calculate portfolio values for the entire year
-            const yearPortfolioValues = calculatePortfolioValue(yearData, portfolio, state.startCapital);
-            
-            if (yearPortfolioValues.length >= 2) {
-                // Define quarter boundaries
-                const q1EndDate = new Date(parseInt(year), 2, 31); // End of March (month 2 = March)
-                const q2EndDate = new Date(parseInt(year), 5, 30); // End of June (month 5 = June)
-                const q3EndDate = new Date(parseInt(year), 8, 30); // End of September (month 8 = September)
-                
-                // Find indices closest to quarter boundaries
-                let q1Index = 0;
-                let q2Index = 0;
-                let q3Index = 0;
-                let minDiffQ1 = Infinity;
-                let minDiffQ2 = Infinity;
-                let minDiffQ3 = Infinity;
-                
-                yearPortfolioValues.forEach((pv, index) => {
-                    const diffQ1 = Math.abs(pv.date - q1EndDate);
-                    const diffQ2 = Math.abs(pv.date - q2EndDate);
-                    const diffQ3 = Math.abs(pv.date - q3EndDate);
-                    
-                    if (diffQ1 < minDiffQ1) {
-                        minDiffQ1 = diffQ1;
-                        q1Index = index;
-                    }
-                    if (diffQ2 < minDiffQ2) {
-                        minDiffQ2 = diffQ2;
-                        q2Index = index;
-                    }
-                    if (diffQ3 < minDiffQ3) {
-                        minDiffQ3 = diffQ3;
-                        q3Index = index;
-                    }
-                });
-                
-                // Calculate Q1 return (start of year to end of Q1)
-                if (q1Index > 0) {
-                    const q1Start = yearPortfolioValues[0].value;
-                    const q1End = yearPortfolioValues[q1Index].value;
-                    const q1Return = ((q1End - q1Start) / q1Start) * 100;
-                    quarterlyData.push({
-                        year: parseInt(year),
-                        quarter: 1,
-                        label: `${year} Q1`,
-                        return: q1Return
-                    });
-                }
-                
-                // Calculate Q2 return (end of Q1 to end of Q2)
-                if (q1Index < q2Index && q2Index < yearPortfolioValues.length) {
-                    const q2Start = yearPortfolioValues[q1Index].value;
-                    const q2End = yearPortfolioValues[q2Index].value;
-                    const q2Return = ((q2End - q2Start) / q2Start) * 100;
-                    quarterlyData.push({
-                        year: parseInt(year),
-                        quarter: 2,
-                        label: `${year} Q2`,
-                        return: q2Return
-                    });
-                }
-                
-                // Calculate Q3 return (end of Q2 to end of Q3)
-                if (q2Index < q3Index && q3Index < yearPortfolioValues.length) {
-                    const q3Start = yearPortfolioValues[q2Index].value;
-                    const q3End = yearPortfolioValues[q3Index].value;
-                    const q3Return = ((q3End - q3Start) / q3Start) * 100;
-                    quarterlyData.push({
-                        year: parseInt(year),
-                        quarter: 3,
-                        label: `${year} Q3`,
-                        return: q3Return
-                    });
-                }
-                
-                // Calculate Q4 return (end of Q3 to end of year)
-                if (q3Index < yearPortfolioValues.length - 1) {
-                    const q4Start = yearPortfolioValues[q3Index].value;
-                    const q4End = yearPortfolioValues[yearPortfolioValues.length - 1].value;
-                    const q4Return = ((q4End - q4Start) / q4Start) * 100;
-                    quarterlyData.push({
-                        year: parseInt(year),
-                        quarter: 4,
-                        label: `${year} Q4`,
-                        return: q4Return
-                    });
-                }
-            }
-        }
-    });
+    // Debug: Verify we have correct count
+    if (state.selectedPeriod === '3y') {
+        console.log('calculateQuarterlyPortfolioReturns - 3y:', {
+            targetYears: targetYears,
+            targetYearsCount: targetYears.length,
+            quarterlyDataCount: quarterlyData.length,
+            expectedQuarters: targetYears.length * 4,
+            quarters: quarterlyData.map(q => q.label)
+        });
+    }
     
     return quarterlyData;
 }
@@ -4540,6 +4532,7 @@ function createPyramidChart() {
         returnData = calculateYearlyPortfolioReturns(portfolio);
     }
     
+    
     if (returnData.length === 0) {
         container.innerHTML = '<p>Ingen data tilgjengelig</p>';
         return;
@@ -4552,22 +4545,45 @@ function createPyramidChart() {
     const bestPeriod = returnData.reduce((best, current) => current.return > best.return ? current : best, returnData[0]);
     const worstPeriod = returnData.reduce((worst, current) => current.return < worst.return ? current : worst, returnData[0]);
     
-    // Create bins (intervals of 10%, centered on 0%)
-    // Bin structure: -45 to -35, -35 to -25, ..., -5 to 5 (center), 5 to 15, ..., 35 to 45
+    // Create bins based on period type
     const bins = {};
-    const minBin = -45;
-    const maxBin = 45;
-    const binWidth = 10;
+    let minBin, maxBin, binWidth;
+    
+    if (useQuarters || useHalfYears) {
+        // For quarters and half years: -22% to +18% with 1% intervals
+        minBin = -22;
+        maxBin = 18;
+        binWidth = 1;
+    } else {
+        // For full year: -45% to +45% with 10% intervals (original)
+        minBin = -45;
+        maxBin = 45;
+        binWidth = 10;
+    }
     
     // Initialize bins
     for (let binStart = minBin; binStart < maxBin; binStart += binWidth) {
-        const binKey = `${binStart}-${binStart + binWidth}`;
+        const binEnd = binStart + binWidth;
+        const binKey = `${binStart}-${binEnd}`;
         bins[binKey] = {
             start: binStart,
-            end: binStart + binWidth,
+            end: binEnd,
             items: [],
             count: 0
         };
+    }
+    
+    // Handle the last bin to include maxBin value
+    if (useHalfYears || useQuarters) {
+        const lastBinKey = `${maxBin - binWidth}-${maxBin}`;
+        if (!bins[lastBinKey]) {
+            bins[lastBinKey] = {
+                start: maxBin - binWidth,
+                end: maxBin,
+                items: [],
+                count: 0
+            };
+        }
     }
     
     // Assign data points to bins and count
@@ -4575,8 +4591,15 @@ function createPyramidChart() {
         const returnValue = item.return;
         // Find which bin this return belongs to
         for (let binStart = minBin; binStart < maxBin; binStart += binWidth) {
-            if (returnValue >= binStart && returnValue < binStart + binWidth) {
-                const binKey = `${binStart}-${binStart + binWidth}`;
+            const binEnd = binStart + binWidth;
+            // For the last bin, include values equal to maxBin
+            if (binStart === maxBin - binWidth && returnValue >= binStart && returnValue <= maxBin) {
+                const binKey = `${binStart}-${binEnd}`;
+                bins[binKey].items.push(item);
+                bins[binKey].count++;
+                break;
+            } else if (returnValue >= binStart && returnValue < binEnd) {
+                const binKey = `${binStart}-${binEnd}`;
                 bins[binKey].items.push(item);
                 bins[binKey].count++;
                 break;
@@ -4606,6 +4629,25 @@ function createPyramidChart() {
         bestYearEl.textContent = `${bestLabel} (${bestPeriod.return.toFixed(2)}%)`;
     }
     
+    // Update modal stats as well
+    const meanModalEl = document.getElementById('pyramid-mean-modal');
+    const stddevModalEl = document.getElementById('pyramid-stddev-modal');
+    const mostFrequentModalEl = document.getElementById('pyramid-most-frequent-modal');
+    const worstYearModalEl = document.getElementById('pyramid-worst-year-modal');
+    const bestYearModalEl = document.getElementById('pyramid-best-year-modal');
+    
+    if (meanModalEl) meanModalEl.textContent = stats.mean.toFixed(2) + '%';
+    if (stddevModalEl) stddevModalEl.textContent = stats.stddev.toFixed(2) + '%';
+    if (mostFrequentModalEl) mostFrequentModalEl.textContent = `${mostFrequentBin.start}% - ${mostFrequentBin.end}%`;
+    if (worstYearModalEl) {
+        const worstLabel = (useQuarters || useHalfYears) ? worstPeriod.label : worstPeriod.year.toString();
+        worstYearModalEl.textContent = `${worstLabel} (${worstPeriod.return.toFixed(2)}%)`;
+    }
+    if (bestYearModalEl) {
+        const bestLabel = (useQuarters || useHalfYears) ? bestPeriod.label : bestPeriod.year.toString();
+        bestYearModalEl.textContent = `${bestLabel} (${bestPeriod.return.toFixed(2)}%)`;
+    }
+    
     // Sort items within each bin by return (highest first)
     Object.keys(bins).forEach(binKey => {
         bins[binKey].items.sort((a, b) => b.return - a.return);
@@ -4633,7 +4675,7 @@ function createPyramidChart() {
     const boxMargin = 1;
     const xAxisLabelHeight = 30; // Space for x-axis labels
     const topPadding = 20;
-    const bottomPadding = 20;
+    const bottomPadding = -20; // More negative padding to move x-axis even further down
     const containerPadding = 24; // var(--space-lg) typically 24px
     
     // Use container height minus padding and labels
@@ -4641,7 +4683,16 @@ function createPyramidChart() {
     
     // Calculate box height: (usable height) / (max possible periods + some margin)
     const baseBoxHeight = Math.max(16, Math.min(22.8, Math.floor(usableHeight / (maxPossiblePeriods + 2))));
-    const boxHeight = baseBoxHeight * 1.1 * 1.1 * 1.2; // Increase height by 45.2% total (10% + 10% + 20%)
+    let boxHeight = baseBoxHeight * 1.1 * 1.1 * 1.2; // Increase height by 45.2% total (10% + 10% + 20%)
+    
+    // Adjust box height based on period type (only for pyramid tab)
+    if (useHalfYears || useQuarters) {
+        boxHeight = boxHeight * 0.5 * 0.7 * 1.3 * 1.3 * 1.15; // Reduce by 50% then additional 30%, then increase by 30% twice, then 15% for half years and quarters
+    } else {
+        // Full year (hele kalenderår)
+        boxHeight = boxHeight * 0.85 * 0.9; // Reduce by 15% then additional 10% (total 23.5% reduction) for full year
+    }
+    
     const totalBoxHeight = boxHeight + (boxMargin * 2);
     
     // Calculate static chart height to fit container without scrolling
@@ -4652,11 +4703,11 @@ function createPyramidChart() {
     // Calculate the actual content height (chart height minus x-axis label space)
     // Ensure x-axis is always visible by reserving space at the bottom
     // Distance between x-axis and boxes should equal one box height
-    const xAxisSpace = xAxisLabelHeight + boxHeight; // Space for x-axis label + one box height
-    const contentHeight = staticChartHeight - xAxisSpace - bottomPadding;
+    const xAxisSpace = boxHeight; // Space between boxes and x-axis equals one box height
+    const contentHeight = staticChartHeight - xAxisSpace - xAxisLabelHeight - bottomPadding;
     
     container.innerHTML = `
-        <div class="pyramid-chart" style="display: flex; align-items: flex-end; gap: 2px; height: ${staticChartHeight}px; padding: ${topPadding}px 20px ${xAxisSpace + bottomPadding}px 20px; border-bottom: 2px solid var(--border); position: relative; box-sizing: border-box;">
+        <div class="pyramid-chart" style="display: flex; align-items: flex-end; gap: 2px; height: ${staticChartHeight}px; padding: ${topPadding}px 20px ${xAxisSpace + xAxisLabelHeight + bottomPadding}px 20px; border-bottom: 2px solid var(--border); position: relative; box-sizing: border-box;">
             ${Object.keys(bins).map(binKey => {
                 const bin = bins[binKey];
                 
@@ -4674,22 +4725,31 @@ function createPyramidChart() {
                                 const displayLabel = (useQuarters || useHalfYears) ? item.label : item.year.toString();
                                 const tooltipLabel = (useQuarters || useHalfYears) ? `${item.label}` : `År: ${item.year}`;
                                 
+                                // Calculate font size based on period type
+                                let fontSize = Math.max(8, boxHeight * 0.4 * 1.1 * 1.1 * 1.2);
+                                if (useHalfYears || useQuarters) {
+                                    fontSize = 0; // No text for half years and quarters
+                                }
+                                
+                                // Box content - empty for half years and quarters
+                                const boxContent = (useHalfYears || useQuarters) ? '' : displayLabel;
+                                
                                 return `
                                     <div 
                                         class="pyramid-box" 
-                                        style="width: 90%; height: ${boxHeight}px; margin: ${boxMargin}px 0; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: ${Math.max(8, boxHeight * 0.4 * 1.1 * 1.1 * 1.2)}px; font-weight: 500; color: white; cursor: pointer; position: relative; flex-shrink: 0; ${colorStyle}"
+                                        style="width: 90%; height: ${boxHeight}px; margin: ${boxMargin}px 0; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: ${fontSize}px; font-weight: 500; color: white; cursor: pointer; position: relative; flex-shrink: 0; ${colorStyle}"
                                         data-year="${item.year}"
                                         data-return="${item.return.toFixed(2)}"
                                         title="${tooltipLabel}, Avkastning: ${item.return.toFixed(2)}%"
                                     >
-                                        ${displayLabel}
+                                        ${boxContent}
                                     </div>
                                 `;
                             }).join('')}
                         </div>
                         <!-- X-axis label - always at the bottom, fully visible -->
                         <div class="pyramid-bin-label" style="position: absolute; bottom: ${bottomPadding}px; left: 0; right: 0; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-secondary); white-space: nowrap; text-align: center; width: 100%; height: ${xAxisLabelHeight}px; display: flex; align-items: center; justify-content: center; z-index: 10;">
-                            ${bin.start}% - ${bin.end}%
+                            ${useQuarters ? `${bin.start}%` : (useHalfYears ? `${bin.start}%` : `${bin.start}% - ${bin.end}%`)}
                         </div>
                     </div>
                 `;
@@ -5866,7 +5926,7 @@ function setupEventListeners() {
     });
     
     // Pyramid period toggle buttons (whole year vs half year)
-    const periodToggleButtons = document.querySelectorAll('.period-toggle-btn');
+    const periodToggleButtons = document.querySelectorAll('#period-toggle-full, #period-toggle-half, #period-toggle-quarter');
     periodToggleButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             periodToggleButtons.forEach(b => b.classList.remove('active'));
@@ -6476,6 +6536,55 @@ function initializeDisclaimerModal() {
 }
 
 // ========================================
+// Pyramid Statistics Modal
+// ========================================
+let pyramidStatsModalInitialized = false;
+function initializePyramidStatsModal() {
+    // Prevent duplicate initialization
+    if (pyramidStatsModalInitialized) {
+        return;
+    }
+    
+    const modal = document.getElementById('pyramid-stats-modal');
+    const openBtn = document.getElementById('pyramid-stats-btn');
+    const closeBtn = document.getElementById('close-pyramid-stats-modal');
+
+    if (!modal || !openBtn || !closeBtn) {
+        return; // Elements not found
+    }
+
+    // Open modal
+    openBtn.addEventListener('click', function() {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    });
+
+    // Close modal
+    closeBtn.addEventListener('click', function() {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    });
+
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    });
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    });
+
+    pyramidStatsModalInitialized = true;
+}
+
+// ========================================
 // Year by Year Modal
 // ========================================
 let yearByYearModalInitialized = false;
@@ -6684,31 +6793,75 @@ function calculateQuarterlyReturns(year, portfolio) {
     let q4Return = null;
     
     // Calculate Q1 return (start of year to end of Q1)
-    if (q1Index > 0) {
+    // EXACT same logic as "År for år" table - must match exactly
+    // Q1 is calculated from start of year to the data point closest to Q1 end (March 31)
+    // For 2023: Q1 end is March 31, closest data point is April 1 (index 1)
+    // Q1 should be calculated from January 1 (index 0) to April 1 (index 1)
+    if (yearPortfolioValues.length >= 2) {
         const q1Start = yearPortfolioValues[0].value;
+        // q1Index should be 1 for 2023 (April is closest to March 31)
+        // But if q1Index is 0, it means January is closest (shouldn't happen for 2023)
         const q1End = yearPortfolioValues[q1Index].value;
+        // Calculate return from start of year to Q1 end
         q1Return = ((q1End - q1Start) / q1Start) * 100;
     }
     
+    // Debug logging for 2023
+    if (year === 2023) {
+        const q1EndDate = new Date(year, 2, 31); // March 31
+        console.log('calculateQuarterlyReturns - 2023:', {
+            yearDataLength: yearData.length,
+            portfolioValuesLength: yearPortfolioValues.length,
+            q1EndDate: q1EndDate.toISOString().split('T')[0],
+            q1Index: q1Index,
+            q1Date: yearPortfolioValues[q1Index]?.date.toISOString().split('T')[0],
+            q1StartValue: yearPortfolioValues[0]?.value,
+            q1EndValue: yearPortfolioValues[q1Index]?.value,
+            q1Return: q1Return,
+            q2Index: q2Index,
+            q3Index: q3Index,
+            dates: yearPortfolioValues.map((pv, idx) => ({
+                index: idx,
+                date: pv.date.toISOString().split('T')[0],
+                value: pv.value,
+                diffToQ1End: Math.abs(pv.date - q1EndDate)
+            }))
+        });
+    }
+    
     // Calculate Q2 return (end of Q1 to end of Q2)
+    // Q2 should be calculated if we have Q1 end and Q2 end
     if (q1Index < q2Index && q2Index < yearPortfolioValues.length) {
         const q2Start = yearPortfolioValues[q1Index].value;
         const q2End = yearPortfolioValues[q2Index].value;
         q2Return = ((q2End - q2Start) / q2Start) * 100;
+    } else if (q1Index === q2Index && q2Index < yearPortfolioValues.length - 1) {
+        // If Q1 and Q2 fall on same point, Q2 is 0% (no change)
+        q2Return = 0;
     }
     
     // Calculate Q3 return (end of Q2 to end of Q3)
-    if (q2Index < q3Index && q3Index < yearPortfolioValues.length) {
-        const q3Start = yearPortfolioValues[q2Index].value;
+    // Q3 should be calculated if we have Q2 end and Q3 end
+    const q2EndIndex = q2Index;
+    if (q2EndIndex < q3Index && q3Index < yearPortfolioValues.length) {
+        const q3Start = yearPortfolioValues[q2EndIndex].value;
         const q3End = yearPortfolioValues[q3Index].value;
         q3Return = ((q3End - q3Start) / q3Start) * 100;
+    } else if (q2EndIndex === q3Index && q3Index < yearPortfolioValues.length - 1) {
+        // If Q2 and Q3 fall on same point, Q3 is 0% (no change)
+        q3Return = 0;
     }
     
     // Calculate Q4 return (end of Q3 to end of year)
-    if (q3Index < yearPortfolioValues.length - 1) {
-        const q4Start = yearPortfolioValues[q3Index].value;
+    // Q4 should ALWAYS be calculated if we have data
+    const q3EndIndex = q3Index;
+    if (q3EndIndex < yearPortfolioValues.length - 1) {
+        const q4Start = yearPortfolioValues[q3EndIndex].value;
         const q4End = yearPortfolioValues[yearPortfolioValues.length - 1].value;
         q4Return = ((q4End - q4Start) / q4Start) * 100;
+    } else if (q3EndIndex === yearPortfolioValues.length - 1 && yearPortfolioValues.length > 1) {
+        // If Q3 is the last point, Q4 is 0% (no change)
+        q4Return = 0;
     }
     
     return { q1: q1Return, q2: q2Return, q3: q3Return, q4: q4Return };
@@ -6864,6 +7017,23 @@ async function init() {
     updateSliderUI('current');
     updateSliderUI('new');
     
+    // Set default active allocation buttons
+    // 20% for current portfolio
+    const current20Btn = document.querySelector('.allocation-btn[data-allocation="20"][data-portfolio="current"]');
+    if (current20Btn) {
+        // Remove active from all current portfolio buttons
+        document.querySelectorAll('.allocation-btn[data-portfolio="current"]').forEach(btn => btn.classList.remove('active'));
+        current20Btn.classList.add('active');
+    }
+    
+    // 55% for new portfolio
+    const new55Btn = document.querySelector('.allocation-btn[data-allocation="55"][data-portfolio="new"]');
+    if (new55Btn) {
+        // Remove active from all new portfolio buttons
+        document.querySelectorAll('.allocation-btn[data-portfolio="new"]').forEach(btn => btn.classList.remove('active'));
+        new55Btn.classList.add('active');
+    }
+    
     // Update period display
     updatePeriodDisplay();
     
@@ -6882,6 +7052,7 @@ async function init() {
     initializeHistoricalKPIModal();
     initializeDisclaimerModal();
     initializeYearByYearModal();
+    initializePyramidStatsModal();
     
     // Initialize first chart
     createOverviewChart();

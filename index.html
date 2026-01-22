@@ -756,42 +756,42 @@
 
             <!-- Tab: Pyramide -->
             <section class="tab-content" id="tab-pyramid">
-                <div class="pyramid-controls" style="margin-bottom: var(--space-md);">
+                <div class="pyramid-controls" style="margin-bottom: var(--space-md); display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
                     <div class="portfolio-selector">
                         <button class="selector-btn active" data-pyramid-portfolio="new" id="pyramid-portfolio-new">Ny Portefølje</button>
                         <button class="selector-btn" data-pyramid-portfolio="current" id="pyramid-portfolio-current">Dagens Portefølje</button>
                     </div>
-                    <div class="pyramid-period-toggle" style="display: flex; align-items: center; gap: 0; margin-left: 16px;">
-                        <div class="period-toggle-group" style="display: flex; gap: 2px; background: var(--secondary); padding: 2px; border-radius: var(--radius-md); width: fit-content; border: 1px solid var(--border);">
-                            <button class="period-toggle-btn active" data-period="full" id="period-toggle-full">Hele kalenderår</button>
-                            <button class="period-toggle-btn" data-period="half" id="period-toggle-half">Halve kalenderår</button>
-                            <button class="period-toggle-btn" data-period="quarter" id="period-toggle-quarter">Avkastning per kvartal</button>
-                        </div>
+                    <div class="pyramid-period-toggle" style="display: flex; align-items: center; gap: 0;">
+                        <button class="selector-btn active" data-period="full" id="period-toggle-full">Hele kalenderår</button>
+                        <button class="selector-btn" data-period="half" id="period-toggle-half">Halve kalenderår</button>
+                        <button class="selector-btn" data-period="quarter" id="period-toggle-quarter">Avkastning per kvartal</button>
+                        <button class="selector-btn" id="pyramid-stats-btn">Statistikk</button>
                     </div>
                 </div>
                 <div class="pyramid-chart-container" id="pyramid-chart-container">
                     <!-- Chart will be rendered here -->
                 </div>
-                <div class="pyramid-stats" style="margin-top: var(--space-md);">
-                    <div class="stat-item">
-                        <span class="stat-label">Gjennomsnitt:</span>
-                        <span class="stat-value" id="pyramid-mean">-</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Standardavvik:</span>
-                        <span class="stat-value" id="pyramid-stddev">-</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Det intervallet vi har flest av:</span>
-                        <span class="stat-value" id="pyramid-most-frequent">-</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Dårligste år:</span>
-                        <span class="stat-value" id="pyramid-worst-year">-</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Beste år:</span>
-                        <span class="stat-value" id="pyramid-best-year">-</span>
+                
+                <!-- Comparison Table Container -->
+                <div id="quarterly-comparison-container" style="margin-top: var(--space-md); display: none;">
+                    <div style="background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-md);">
+                        <h3 style="margin-top: 0; margin-bottom: var(--space-md);">Sammenligning: Kvartalsavkastning</h3>
+                        <div style="overflow-x: auto;">
+                            <table id="quarterly-comparison-table" style="width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 13px;">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid var(--border);">
+                                        <th style="padding: 8px; text-align: left;">Kvartal</th>
+                                        <th style="padding: 8px; text-align: right;">"År for år" tabell</th>
+                                        <th style="padding: 8px; text-align: right;">Pyramide (3y)</th>
+                                        <th style="padding: 8px; text-align: center;">Match</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="quarterly-comparison-tbody">
+                                    <!-- Filled by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="comparison-summary" style="margin-top: var(--space-md); padding: var(--space-sm); border-radius: var(--radius-sm); font-weight: 500;"></div>
                     </div>
                 </div>
             </section>
@@ -977,13 +977,40 @@
         </div>
     </div>
 
+    <!-- Pyramid Statistics Modal -->
+    <div class="modal-overlay" id="pyramid-stats-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Statistikk</h2>
+                <button class="close-btn" id="close-pyramid-stats-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="pyramid-stats-container" style="display: flex; flex-direction: column; gap: 16px;">
+                    <div class="stat-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--secondary); border-radius: var(--radius-sm);">
+                        <span class="stat-label" style="font-weight: 500; color: var(--muted-foreground);">Gjennomsnitt:</span>
+                        <span class="stat-value" id="pyramid-mean-modal" style="font-weight: 600; color: var(--foreground); font-family: 'JetBrains Mono', monospace;">-</span>
+                    </div>
+                    <div class="stat-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--secondary); border-radius: var(--radius-sm);">
+                        <span class="stat-label" style="font-weight: 500; color: var(--muted-foreground);">Standardavvik:</span>
+                        <span class="stat-value" id="pyramid-stddev-modal" style="font-weight: 600; color: var(--foreground); font-family: 'JetBrains Mono', monospace;">-</span>
+                    </div>
+                    <div class="stat-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--secondary); border-radius: var(--radius-sm);">
+                        <span class="stat-label" style="font-weight: 500; color: var(--muted-foreground);">Det intervallet vi har flest av:</span>
+                        <span class="stat-value" id="pyramid-most-frequent-modal" style="font-weight: 600; color: var(--foreground); font-family: 'JetBrains Mono', monospace;">-</span>
+                    </div>
+                    <div class="stat-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--secondary); border-radius: var(--radius-sm);">
+                        <span class="stat-label" style="font-weight: 500; color: var(--muted-foreground);">Dårligste år:</span>
+                        <span class="stat-value" id="pyramid-worst-year-modal" style="font-weight: 600; color: var(--destructive); font-family: 'JetBrains Mono', monospace;">-</span>
+                    </div>
+                    <div class="stat-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--secondary); border-radius: var(--radius-sm);">
+                        <span class="stat-label" style="font-weight: 500; color: var(--muted-foreground);">Beste år:</span>
+                        <span class="stat-value" id="pyramid-best-year-modal" style="font-weight: 600; color: var(--primary); font-family: 'JetBrains Mono', monospace;">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
-
-
-</html>
-
-
-
-
