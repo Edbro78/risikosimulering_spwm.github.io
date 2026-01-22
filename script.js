@@ -4707,7 +4707,7 @@ function createPyramidChart() {
     const contentHeight = staticChartHeight - xAxisSpace - xAxisLabelHeight - bottomPadding;
     
     container.innerHTML = `
-        <div class="pyramid-chart" style="display: flex; align-items: flex-end; gap: 2px; height: ${staticChartHeight}px; padding: ${topPadding}px 20px ${xAxisSpace + xAxisLabelHeight + bottomPadding}px 20px; border-bottom: 2px solid var(--border); position: relative; box-sizing: border-box;">
+        <div class="pyramid-chart" style="display: flex; align-items: flex-end; gap: 2px; height: ${staticChartHeight}px; padding: ${topPadding}px 20px ${xAxisSpace + xAxisLabelHeight + bottomPadding}px 20px; border-bottom: 2px solid var(--border); position: relative; box-sizing: border-box; background: var(--secondary);">
             ${Object.keys(bins).map(binKey => {
                 const bin = bins[binKey];
                 
@@ -4720,6 +4720,16 @@ function createPyramidChart() {
                                 // Special case: if in middle bin (-5 to 5) and return is negative, use red
                                 if (bin.start === -5 && item.return < 0) {
                                     colorStyle = 'background-color: oklch(0.65 0.15 15);'; // Light red (rose-400)
+                                }
+                                // For half years and quarters: all negative values should be red
+                                if ((useHalfYears || useQuarters) && item.return < 0) {
+                                    if (item.return < -20) {
+                                        colorStyle = 'background-color: oklch(0.35 0.15 15);'; // Dark red (rose-700)
+                                    } else if (item.return < -10) {
+                                        colorStyle = 'background-color: oklch(0.42 0.15 15);'; // Red (rose-600)
+                                    } else {
+                                        colorStyle = 'background-color: oklch(0.65 0.15 15);'; // Light red (rose-400)
+                                    }
                                 }
                                 
                                 const displayLabel = (useQuarters || useHalfYears) ? item.label : item.year.toString();
@@ -4757,12 +4767,88 @@ function createPyramidChart() {
         </div>
     `;
     
-    // Add tooltip functionality
+    // Add hover functionality to show text and enlarge box
     container.querySelectorAll('.pyramid-box').forEach(box => {
+        const originalFontSize = box.style.fontSize;
+        const originalHeight = box.style.height;
+        // Get content from data attributes or text content
+        const year = box.dataset.year || '';
+        const returnValue = box.dataset.return || '';
+        const tooltipTitle = box.getAttribute('title') || '';
+        // Extract label from tooltip if available
+        let originalContent = box.textContent.trim();
+        if (!originalContent && tooltipTitle) {
+            // Try to extract from tooltip (format: "År: 1995, Avkastning: 5.60%" or "H1 1995, Avkastning: 5.60%")
+            const match = tooltipTitle.match(/^(?:År:|)([^,]+)/);
+            if (match) {
+                originalContent = match[1].trim();
+            } else if (year) {
+                originalContent = year;
+            }
+        }
+        const shouldHideText = useHalfYears || useQuarters;
+        const isHalfYearOrQuarter = useHalfYears || useQuarters;
+        
         box.addEventListener('mouseenter', function(e) {
-            const year = this.dataset.year;
-            const returnValue = this.dataset.return;
-            // Tooltip is already in title attribute, but we can enhance it
+            if (isHalfYearOrQuarter) {
+                // For half years and quarters: scale both box and text equally
+                const currentHeight = parseFloat(this.style.height) || parseFloat(originalHeight) || 20;
+                const currentWidth = parseFloat(this.style.width) || 90; // 90% is default
+                
+                const currentFontSize = parseFloat(this.style.fontSize) || 0;
+                let newFontSize;
+                const scaleFactor = 2.5; // Increased from 1.5 to 2.5 for better readability
+                
+                if (currentFontSize === 0 || this.style.fontSize === '0px') {
+                    // Calculate font size that will scale proportionally with the box
+                    const boxHeight = parseFloat(this.style.height) || 20;
+                    // Font size should be proportional to box height, but smaller for readability
+                    const baseFontSize = Math.max(8, boxHeight * 0.35); // Reduced from 0.5 to 0.35
+                    newFontSize = baseFontSize * scaleFactor * 0.6; // Scale up by scaleFactor, then reduce by 40%
+                    this.style.fontSize = newFontSize + 'px';
+                    // Restore content if it was empty
+                    if (!this.textContent.trim() && originalContent) {
+                        this.textContent = originalContent;
+                    }
+                } else {
+                    // If text is already visible, scale it up proportionally
+                    newFontSize = currentFontSize * scaleFactor * 0.6; // Scale up by scaleFactor, then reduce by 40%
+                    this.style.fontSize = newFontSize + 'px';
+                }
+                
+                // Calculate width based on text size to ensure box expands to fit text
+                // Use font size to determine appropriate width multiplier
+                // Font size increases by scaleFactor, so width should also increase proportionally
+                const widthMultiplier = scaleFactor; // Same as height and font size increase
+                
+                // Increase box size by scaleFactor in both height and width
+                this.style.height = (currentHeight * scaleFactor) + 'px';
+                this.style.width = (currentWidth * widthMultiplier) + '%';
+            } else {
+                // For full year: show text if needed
+                const currentFontSize = parseFloat(this.style.fontSize) || 0;
+                if (currentFontSize === 0 || this.style.fontSize === '0px') {
+                    const boxHeight = parseFloat(this.style.height) || 20;
+                    this.style.fontSize = Math.max(10, boxHeight * 0.6) + 'px';
+                    if (!this.textContent.trim() && originalContent) {
+                        this.textContent = originalContent;
+                    }
+                }
+            }
+        });
+        
+        box.addEventListener('mouseleave', function(e) {
+            // Restore original font size
+            this.style.fontSize = originalFontSize;
+            // Restore original box size
+            if (isHalfYearOrQuarter) {
+                this.style.height = originalHeight;
+                this.style.width = '90%'; // Restore default width
+            }
+            // Restore content if needed
+            if (shouldHideText) {
+                this.textContent = '';
+            }
         });
     });
 }

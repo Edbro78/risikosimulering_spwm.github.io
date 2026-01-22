@@ -880,6 +880,15 @@ body {
     position: relative;
 }
 
+/* Pyramid chart container - same background as nurse chart */
+#pyramid-chart-container {
+    background: var(--secondary);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm);
+    border: 1px solid var(--border);
+    position: relative;
+}
+
 .chart-wrapper.large {
     flex: 1;
     min-height: 500px;
@@ -2124,6 +2133,18 @@ body {
 
 .future-value {
     background: var(--card);
+}
+
+/* Pyramid box hover effect */
+.pyramid-box {
+    transition: all var(--transition-base);
+    z-index: 1;
+}
+
+.pyramid-box:hover {
+    transform: scale(1.5);
+    z-index: 10;
+    box-shadow: var(--shadow-lg);
 }
 
 /* Header buttons */
