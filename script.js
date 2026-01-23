@@ -4554,27 +4554,20 @@ function createPyramidChart() {
         minBin = -22;
         maxBin = 18;
         binWidth = 1;
-    } else {
-        // For full year: -50% to +50% with 10% intervals
-        minBin = -50;
-        maxBin = 50;
-        binWidth = 10;
-    }
-    
-    // Initialize bins
-    for (let binStart = minBin; binStart < maxBin; binStart += binWidth) {
-        const binEnd = binStart + binWidth;
-        const binKey = `${binStart}-${binEnd}`;
-        bins[binKey] = {
-            start: binStart,
-            end: binEnd,
-            items: [],
-            count: 0
-        };
-    }
-    
-    // Handle the last bin to include maxBin value
-    if (useHalfYears || useQuarters) {
+        
+        // Initialize bins
+        for (let binStart = minBin; binStart < maxBin; binStart += binWidth) {
+            const binEnd = binStart + binWidth;
+            const binKey = `${binStart}-${binEnd}`;
+            bins[binKey] = {
+                start: binStart,
+                end: binEnd,
+                items: [],
+                count: 0
+            };
+        }
+        
+        // Handle the last bin to include maxBin value
         const lastBinKey = `${maxBin - binWidth}-${maxBin}`;
         if (!bins[lastBinKey]) {
             bins[lastBinKey] = {
@@ -4584,28 +4577,102 @@ function createPyramidChart() {
                 count: 0
             };
         }
-    }
-    
-    // Assign data points to bins and count
-    returnData.forEach(item => {
-        const returnValue = item.return;
-        // Find which bin this return belongs to
+        
+        // Assign data points to bins and count
+        returnData.forEach(item => {
+            const returnValue = item.return;
+            // Find which bin this return belongs to
+            for (let binStart = minBin; binStart < maxBin; binStart += binWidth) {
+                const binEnd = binStart + binWidth;
+                // For the last bin, include values equal to maxBin
+                if (binStart === maxBin - binWidth && returnValue >= binStart && returnValue <= maxBin) {
+                    const binKey = `${binStart}-${binEnd}`;
+                    bins[binKey].items.push(item);
+                    bins[binKey].count++;
+                    break;
+                } else if (returnValue >= binStart && returnValue < binEnd) {
+                    const binKey = `${binStart}-${binEnd}`;
+                    bins[binKey].items.push(item);
+                    bins[binKey].count++;
+                    break;
+                }
+            }
+        });
+    } else {
+        // For full year: -50% to +50% with 10% intervals, EXCEPT 0-10% which is split into 0-5% and 5-10%
+        minBin = -50;
+        maxBin = 50;
+        binWidth = 10;
+        
+        // Initialize bins with special handling for 0-10% interval
         for (let binStart = minBin; binStart < maxBin; binStart += binWidth) {
-            const binEnd = binStart + binWidth;
-            // For the last bin, include values equal to maxBin
-            if (binStart === maxBin - binWidth && returnValue >= binStart && returnValue <= maxBin) {
+            if (binStart === 0) {
+                // Split 0-10% into 0-5% and 5-10%
+                const binKey1 = `0-5`;
+                bins[binKey1] = {
+                    start: 0,
+                    end: 5,
+                    items: [],
+                    count: 0
+                };
+                const binKey2 = `5-10`;
+                bins[binKey2] = {
+                    start: 5,
+                    end: 10,
+                    items: [],
+                    count: 0
+                };
+            } else {
+                const binEnd = binStart + binWidth;
                 const binKey = `${binStart}-${binEnd}`;
-                bins[binKey].items.push(item);
-                bins[binKey].count++;
-                break;
-            } else if (returnValue >= binStart && returnValue < binEnd) {
-                const binKey = `${binStart}-${binEnd}`;
-                bins[binKey].items.push(item);
-                bins[binKey].count++;
-                break;
+                bins[binKey] = {
+                    start: binStart,
+                    end: binEnd,
+                    items: [],
+                    count: 0
+                };
             }
         }
-    });
+        
+        // Assign data points to bins and count
+        returnData.forEach(item => {
+            const returnValue = item.return;
+            // Find which bin this return belongs to
+            let assigned = false;
+            
+            // Check special bins first (0-5% and 5-10%)
+            if (returnValue >= 0 && returnValue < 5) {
+                bins['0-5'].items.push(item);
+                bins['0-5'].count++;
+                assigned = true;
+            } else if (returnValue >= 5 && returnValue < 10) {
+                bins['5-10'].items.push(item);
+                bins['5-10'].count++;
+                assigned = true;
+            } else {
+                // Check regular bins
+                for (let binStart = minBin; binStart < maxBin; binStart += binWidth) {
+                    if (binStart === 0) continue; // Skip 0, already handled above
+                    
+                    const binEnd = binStart + binWidth;
+                    // For the last bin, include values equal to maxBin
+                    if (binStart === maxBin - binWidth && returnValue >= binStart && returnValue <= maxBin) {
+                        const binKey = `${binStart}-${binEnd}`;
+                        bins[binKey].items.push(item);
+                        bins[binKey].count++;
+                        assigned = true;
+                        break;
+                    } else if (returnValue >= binStart && returnValue < binEnd) {
+                        const binKey = `${binStart}-${binEnd}`;
+                        bins[binKey].items.push(item);
+                        bins[binKey].count++;
+                        assigned = true;
+                        break;
+                    }
+                }
+            }
+        });
+    }
     
     // Find bin with most items
     const mostFrequentBin = Object.values(bins).reduce((max, bin) => bin.count > max.count ? bin : max, bins[Object.keys(bins)[0]]);
@@ -4710,9 +4777,16 @@ function createPyramidChart() {
     const xAxisSpace = boxHeight; // Space between boxes and x-axis equals one box height
     const contentHeight = staticChartHeight - xAxisSpace - xAxisLabelHeight - bottomPadding;
     
+    // Sort bins by start value to ensure correct order
+    const sortedBinKeys = Object.keys(bins).sort((a, b) => {
+        const binA = bins[a];
+        const binB = bins[b];
+        return binA.start - binB.start;
+    });
+    
     container.innerHTML = `
         <div class="pyramid-chart" style="display: flex; align-items: flex-end; gap: 2px; height: ${staticChartHeight}px; padding: ${topPadding}px 20px ${xAxisSpace + xAxisLabelHeight + bottomPadding}px 20px; border-bottom: 2px solid var(--border); position: relative; box-sizing: border-box; background: var(--secondary);">
-            ${Object.keys(bins).map(binKey => {
+            ${sortedBinKeys.map(binKey => {
                 const bin = bins[binKey];
                 
                 return `
