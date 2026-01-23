@@ -4686,8 +4686,12 @@ function createPyramidChart() {
     let boxHeight = baseBoxHeight * 1.1 * 1.1 * 1.2; // Increase height by 45.2% total (10% + 10% + 20%)
     
     // Adjust box height based on period type (only for pyramid tab)
-    if (useHalfYears || useQuarters) {
-        boxHeight = boxHeight * 0.5 * 0.7 * 1.3 * 1.3 * 1.15; // Reduce by 50% then additional 30%, then increase by 30% twice, then 15% for half years and quarters
+    if (useHalfYears) {
+        // For half years: reduce by 50% then additional 30%, then increase by 30% twice, then 15%, then additional 20% twice
+        boxHeight = boxHeight * 0.5 * 0.7 * 1.3 * 1.3 * 1.15 * 1.2 * 1.2;
+    } else if (useQuarters) {
+        // For quarters: reduce by 50% then additional 30%, then increase by 30% twice, then 15%
+        boxHeight = boxHeight * 0.5 * 0.7 * 1.3 * 1.3 * 1.15;
     } else {
         // Full year (hele kalenderår)
         boxHeight = boxHeight * 0.85 * 0.9; // Reduce by 15% then additional 10% (total 23.5% reduction) for full year
@@ -4726,6 +4730,16 @@ function createPyramidChart() {
                                     if (item.return < -20) {
                                         colorStyle = 'background-color: oklch(0.35 0.15 15);'; // Dark red (rose-700)
                                     } else if (item.return < -10) {
+                                        colorStyle = 'background-color: oklch(0.42 0.15 15);'; // Red (rose-600)
+                                    } else {
+                                        colorStyle = 'background-color: oklch(0.65 0.15 15);'; // Light red (rose-400)
+                                    }
+                                }
+                                // For full year: all negative values should be red
+                                if (!useHalfYears && !useQuarters && item.return < 0) {
+                                    if (item.return < -35) {
+                                        colorStyle = 'background-color: oklch(0.35 0.15 15);'; // Dark red (rose-700)
+                                    } else if (item.return < -25) {
                                         colorStyle = 'background-color: oklch(0.42 0.15 15);'; // Red (rose-600)
                                     } else {
                                         colorStyle = 'background-color: oklch(0.65 0.15 15);'; // Light red (rose-400)

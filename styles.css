@@ -885,8 +885,10 @@ body {
     background: var(--secondary);
     border-radius: var(--radius-md);
     padding: var(--space-sm);
+    padding-bottom: 2px;
     border: 1px solid var(--border);
     position: relative;
+    margin-bottom: var(--space-md);
 }
 
 .chart-wrapper.large {
